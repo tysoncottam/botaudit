@@ -1,102 +1,93 @@
 [
   {
-    "company": "Loom",
-    "supportUrl": "https://support.loom.com/hc/en-us",
-    "contactEmail": "support@loom.com"
+    "company": "Nature's Sunshine",
+    "supportUrl": "https://www.naturessunshine.com/us/contact/",
+    "contactEmail": "customerservice@naturessunshine.com",
+    "chatPlatform": "LiveChat",
+    "notes": "Utah-based, small CX team, LiveChat confirmed"
   },
   {
-    "company": "Webflow",
-    "supportUrl": "https://university.webflow.com",
-    "contactEmail": "support@webflow.com"
+    "company": "HireVue",
+    "supportUrl": "https://hirevuesupport.zendesk.com/hc/en-us",
+    "contactEmail": "support@hirevue.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Utah-based, HR tech SaaS, Zendesk confirmed"
   },
   {
-    "company": "Grammarly",
-    "supportUrl": "https://support.grammarly.com/hc/en-us",
-    "contactEmail": "support@grammarly.com"
-  },
-  {
-    "company": "Canva",
-    "supportUrl": "https://www.canva.com/help",
-    "contactEmail": "support@canva.com"
-  },
-  {
-    "company": "Dropbox",
-    "supportUrl": "https://help.dropbox.com",
-    "contactEmail": "support@dropbox.com"
-  },
-  {
-    "company": "Mailchimp",
-    "supportUrl": "https://mailchimp.com/help",
-    "contactEmail": "support@mailchimp.com"
-  },
-  {
-    "company": "Typeform",
-    "supportUrl": "https://www.typeform.com/help",
-    "contactEmail": "support@typeform.com"
-  },
-  {
-    "company": "Hotjar",
-    "supportUrl": "https://help.hotjar.com",
-    "contactEmail": "support@hotjar.com"
-  },
-  {
-    "company": "Zapier",
-    "supportUrl": "https://zapier.com/help",
-    "contactEmail": "support@zapier.com"
-  },
-  {
-    "company": "Notion",
-    "supportUrl": "https://www.notion.so/help",
-    "contactEmail": "team@makenotion.com"
-  },
-  {
-    "company": "Calendly",
-    "supportUrl": "https://help.calendly.com/hc/en-us",
-    "contactEmail": "support@calendly.com"
-  },
-  {
-    "company": "monday.com",
-    "supportUrl": "https://support.monday.com/hc/en-us",
-    "contactEmail": "support@monday.com"
-  },
-  {
-    "company": "Freshdesk",
-    "supportUrl": "https://support.freshdesk.com/en/support/home",
-    "contactEmail": "support@freshworks.com"
-  },
-  {
-    "company": "Unbounce",
-    "supportUrl": "https://documentation.unbounce.com/hc/en-us",
-    "contactEmail": "support@unbounce.com"
-  },
-  {
-    "company": "Teachable",
-    "supportUrl": "https://support.teachable.com/hc/en-us",
-    "contactEmail": "support@teachable.com"
-  },
-  {
-    "company": "Gusto",
-    "supportUrl": "https://support.gusto.com",
-    "contactEmail": "support@gusto.com"
+    "company": "Pluralsight",
+    "supportUrl": "https://www.pluralsight.com/contact-us",
+    "contactEmail": "support@pluralsight.com",
+    "chatPlatform": "Drift",
+    "notes": "Utah-based, ed-tech SaaS, Drift confirmed"
   },
   {
     "company": "Squarespace",
     "supportUrl": "https://support.squarespace.com",
-    "contactEmail": "support@squarespace.com"
+    "contactEmail": "support@squarespace.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk widget script directly confirmed in page source"
   },
   {
-    "company": "Wix",
-    "supportUrl": "https://support.wix.com/en",
-    "contactEmail": "support@wix.com"
+    "company": "Teachable",
+    "supportUrl": "https://support.teachable.com/hc/en-us",
+    "contactEmail": "support@teachable.com",
+    "chatPlatform": "Intercom",
+    "notes": "Intercom widget script directly confirmed in page source"
   },
   {
-    "company": "Shopify",
-    "supportUrl": "https://help.shopify.com",
-    "contactEmail": "support@shopify.com"
+    "company": "Freshdesk",
+    "supportUrl": "https://support.freshdesk.com/en/support/home",
+    "contactEmail": "support@freshdesk.com",
+    "chatPlatform": "Freshchat",
+    "notes": "Freshchat script directly confirmed — ironic, a support tool with its own bot"
   },
   {
-    "company": "BigCommerce",
-    "supportUrl": "https://support.bigcommerce.com/s",
-    "contactEmail": "support@bigcommerce.com"
+    "company": "Grammarly",
+    "supportUrl": "https://support.grammarly.com/hc/en-us",
+    "contactEmail": "support@grammarly.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk-hosted help center, chat widget confirmed via Grammarly support docs"
+  },
+  {
+    "company": "Hotjar",
+    "supportUrl": "https://help.hotjar.com/hc/en-us",
+    "contactEmail": "support@hotjar.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk case study confirmed — doubled self-service score"
+  },
+  {
+    "company": "Calendly",
+    "supportUrl": "https://help.calendly.com/hc/en-us",
+    "contactEmail": "support@calendly.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk-hosted, confirmed in Zendesk customer story"
+  },
+  {
+    "company": "Zapier",
+    "supportUrl": "https://help.zapier.com/hc/en-us",
+    "contactEmail": "support@zapier.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk-hosted, verified Zendesk marketplace partner"
+  },
+  {
+    "company": "monday.com",
+    "supportUrl": "https://support.monday.com/hc/en-us",
+    "contactEmail": "support@monday.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk-hosted, monday.com publishes their own Zendesk integration docs"
+  },
+  {
+    "company": "Typeform",
+    "supportUrl": "https://help.typeform.com/hc/en-us",
+    "contactEmail": "support@typeform.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk-hosted help center"
+  },
+  {
+    "company": "Unbounce",
+    "supportUrl": "https://documentation.unbounce.com/hc/en-us",
+    "contactEmail": "support@unbounce.com",
+    "chatPlatform": "Zendesk",
+    "notes": "Zendesk-hosted, has public Zendesk/Intercom integration repo on GitHub"
   }
 ]
