@@ -707,7 +707,23 @@ function startTest(configId, stripeSessionId) {
   }
 
   sseSource.onerror = () => {
-    addFeedItem('Connection lost — attempting to reconnect...', 'feed-error')
+    if (sseSource.readyState === EventSource.CLOSED) {
+      addFeedItem('Connection closed. Checking for saved results...', 'feed-error')
+      fetch(`/api/results/${configId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.status === 'complete' && data.results) {
+            addFeedItem('Results recovered from server.', 'feed-complete-msg')
+            renderResults(data.results, data.summary)
+            setTimeout(() => scrollTo('results-section'), 400)
+          } else {
+            addFeedItem('Could not recover results — the test may need to be re-run.', 'feed-error')
+          }
+        })
+        .catch(() => addFeedItem('Could not reach server. Please refresh and try again.', 'feed-error'))
+    } else {
+      addFeedItem('Connection lost — reconnecting...', 'feed-error')
+    }
   }
 }
 
@@ -884,6 +900,22 @@ function handleSSEEvent(event) {
       setTimeout(() => scrollTo('results-section'), 800)
       break
 
+    case 'interrupted': {
+      sseSource && sseSource.close()
+      const spI = $('test-spinner')
+      if (spI) spI.style.display = 'none'
+      addFeedItem('⚠ ' + (event.message || 'Test was interrupted by a server restart.'), 'feed-error')
+      if (event.partial && event.partial.length > 0) {
+        addFeedItem(`Partial results recovered: ${event.partial.length} question(s) completed before restart.`, 'feed-waiting')
+        const partialSummary = buildPartialSummary(event.partial)
+        renderResults(event.partial, partialSummary)
+        setTimeout(() => scrollTo('results-section'), 400)
+      } else {
+        addFeedItem('No partial results were saved. Please re-run the test.', 'feed-error')
+      }
+      break
+    }
+
     case 'fatal_error':
       sseSource && sseSource.close()
       const sp = $('test-spinner')
@@ -957,6 +989,20 @@ function renderFeedPage() {
   $('feed-page-info').textContent = `Page ${feedPage + 1} of ${totalPages}`
 }
 
+
+function buildPartialSummary(results) {
+  let totalRuns = 0, errors = 0, inconsistentAnswers = 0, totalMs = 0, msCount = 0
+  for (const q of results) {
+    for (const r of (q.runs || [])) {
+      totalRuns++
+      if (r.error) errors++
+      if (r.responseTimeMs) { totalMs += r.responseTimeMs; msCount++ }
+    }
+    const responses = (q.runs || []).filter(r => !r.error).map(r => r.response)
+    if (responses.length > 1 && new Set(responses).size > 1) inconsistentAnswers++
+  }
+  return { totalRuns, errors, inconsistentAnswers, avgResponseTimeMs: msCount ? Math.round(totalMs / msCount) : 0 }
+}
 
 // ── Results rendering ─────────────────────────────────────────────────────────
 function renderResults(results, summary) {

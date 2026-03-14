@@ -375,8 +375,34 @@ app.get('/api/stream/:configId', async (req, res) => {
   const { configId } = req.params
   const { session_id } = req.query
 
-  const session = sessions.get(configId)
-  if (!session) return res.status(404).json({ error: 'Session not found' })
+  let session = sessions.get(configId)
+
+  // ── Disk restoration (server restart recovery) ────────────────────────────
+  if (!session) {
+    const restored = restoreSessionFromDisk(configId)
+    if (!restored) return res.status(404).json({ error: 'Session not found' })
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
+
+    const sendRestored = (data) => { try { res.write(`data: ${JSON.stringify(data)}\n\n`) } catch { /* client gone */ } }
+
+    if (restored.status === 'complete' && restored.results) {
+      sendRestored({ type: 'complete', results: restored.results, summary: restored.summary })
+    } else {
+      // Was mid-run when server restarted — surface any partial results saved to disk
+      const partialPath = path.join(__dirname, 'results', configId, 'partial-results.json')
+      const partial = fs.existsSync(partialPath)
+        ? (() => { try { return JSON.parse(fs.readFileSync(partialPath, 'utf8')) } catch { return null } })()
+        : null
+      sendRestored({ type: 'interrupted', partial, message: 'The server restarted while your test was running. Partial results are shown below.' })
+    }
+    res.end()
+    return
+  }
 
   // ── Verify payment ────────────────────────────────────────────────────────
   if (session.status === 'pending_payment') {

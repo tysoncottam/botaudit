@@ -25,6 +25,94 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
   <link rel="stylesheet" href="style.css">
+
+  <!-- Structured data for Google rich results and AI understanding -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://botaudit.app/#app",
+        "name": "BotAudit",
+        "alternateName": ["Bot Audit", "BotAudit.app", "Support Bot Tester"],
+        "url": "https://botaudit.app",
+        "description": "BotAudit is an automated support bot quality testing tool. It runs your questions against any Zendesk Messaging chat widget and reports on answer consistency, response time, errors, and missed questions. No setup required — pay once, get results.",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "Quality Assurance",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "USD",
+          "price": "0",
+          "description": "Free 3-question demo. Paid audits start at a few dollars depending on question count and runs.",
+          "availability": "https://schema.org/InStock"
+        },
+        "featureList": [
+          "Automated Zendesk Messaging chat bot testing",
+          "Consistency checking across multiple runs",
+          "Screenshot capture of bot responses",
+          "PDF audit report generation",
+          "Response time measurement",
+          "CSV and ZIP export of results",
+          "No installation required"
+        ],
+        "screenshot": "https://botaudit.app/og-image.png",
+        "provider": {
+          "@type": "Organization",
+          "@id": "https://botaudit.app/#org",
+          "name": "BotAudit",
+          "url": "https://botaudit.app"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://botaudit.app/#website",
+        "url": "https://botaudit.app",
+        "name": "BotAudit",
+        "description": "Automated support bot quality testing for Zendesk Messaging",
+        "publisher": { "@id": "https://botaudit.app/#org" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is BotAudit?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "BotAudit is a tool that automatically tests AI support bots. It sends your questions to your live chat widget, records the responses, checks for consistency across multiple runs, and generates a detailed PDF audit report."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which chat platforms does BotAudit support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "BotAudit currently supports Zendesk Messaging (the Zendesk Web Widget). It interacts with the live widget on your website using a real browser."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How much does BotAudit cost?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can run a free 3-question demo with no account required. Paid audits are one-time payments — no subscription. Pricing depends on the number of questions and how many runs per question you configure."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does BotAudit test?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "BotAudit tests whether your support bot responds correctly to common customer questions, whether answers are consistent across multiple runs, how fast it responds, and whether it errors or fails to respond at all."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 

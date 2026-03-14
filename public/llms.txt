@@ -1,0 +1,45 @@
+# BotAudit
+
+> Automated quality testing for AI support bots — find out if your chatbot is actually helping customers or quietly failing them.
+
+BotAudit is a web-based tool that automatically tests Zendesk Messaging chat widgets (and similar support bots) by sending configurable questions to the live widget, recording responses, checking consistency across multiple runs, and generating a detailed PDF audit report.
+
+## What it does
+
+- Runs a set of test questions against any live Zendesk Messaging widget
+- Sends each question multiple times (1×, 3×, or 5×) to test consistency
+- Captures screenshots of the bot conversation
+- Measures response time per question
+- Detects errors, no-responses, and inconsistent answers
+- Generates a downloadable PDF report and CSV data export
+
+## Who it's for
+
+- Customer support managers who want to verify their Zendesk bot is configured correctly
+- QA teams running regression tests after updating bot flows or knowledge base articles
+- Agencies delivering Zendesk implementations who need proof-of-quality reports for clients
+- Anyone who suspects their support bot is not answering customers correctly
+
+## Pricing
+
+- **Free demo**: 3 questions, 1 run each — no account or payment required
+- **Paid audits**: one-time payment, no subscription. Price scales with number of questions and runs per question (typically a few dollars for a standard 20-question audit)
+
+## How to use it
+
+1. Enter the URL of any page that has a Zendesk Messaging chat widget
+2. Choose a question set (20 default questions, or upload your own)
+3. Configure the number of runs per question
+4. Pay (or use the free demo)
+5. Watch the live feed as BotAudit tests the bot in real time
+6. Download the PDF report and CSV results
+
+## Technology
+
+BotAudit uses Playwright (headless Chromium) to interact with the real chat widget on the target page — the same way a human customer would. Each question is sent in a fresh browser session to prevent conversation memory from affecting results.
+
+## Contact and access
+
+- Website: https://botaudit.app
+- No API currently available
+- No account registration required — sessions are identified by a one-time ID
