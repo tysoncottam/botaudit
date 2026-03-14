@@ -534,7 +534,7 @@ async function runTest(config, onProgress) {
   const total = questions.length * runsPerQuestion
   onProgress({ type: 'start', total, questions: questions.length, runs: runsPerQuestion })
 
-  const browser = await chromium.launch({ headless: process.env.HEADLESS !== 'false' })
+  const browser = await chromium.launch({ headless: process.env.HEADLESS !== 'false', args: ['--no-sandbox', '--disable-setuid-sandbox'] })
   const results = []
   let completed = 0
 
@@ -714,7 +714,7 @@ async function runTest(config, onProgress) {
 // ── Bot reachability pre-flight check ────────────────────────────────────────
 async function checkBot({ targetUrl, preChatSteps = [], preChatEmail = '' }) {
   const headless = process.env.HEADLESS !== 'false'
-  const browser = await chromium.launch({ headless })
+  const browser = await chromium.launch({ headless, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 800 },
