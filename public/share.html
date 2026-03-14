@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BotAudit Report</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-brand { color: #fff; font-weight: 700; font-size: 18px; text-decoration: none; letter-spacing: -0.3px; }
+    .topbar-brand span { color: #6366f1; }
+    .topbar-cta { background: #6366f1; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    .report-header { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; }
+    .report-title { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+    .report-meta { font-size: 13px; color: #64748b; display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+    .report-meta span { display: flex; align-items: center; gap: 5px; }
+
+    .scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .score-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 16px; text-align: center; }
+    .score-box .val { font-size: 28px; font-weight: 700; color: #0f172a; line-height: 1; }
+    .score-box .lbl { font-size: 11px; color: #64748b; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .score-box.warn .val { color: #f59e0b; }
+    .score-box.bad  .val { color: #ef4444; }
+    .score-box.good .val { color: #10b981; }
+
+    .section-title { font-size: 14px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+    .q-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+    .q-card-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .q-card-header:hover { background: #f8fafc; }
+    .q-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .q-status.consistent   { background: #10b981; }
+    .q-status.inconsistent { background: #f59e0b; }
+    .q-status.error        { background: #ef4444; }
+    .q-question { font-size: 14px; font-weight: 600; color: #0f172a; flex: 1; }
+    .q-badge { font-size: 11px; color: #64748b; background: #f1f5f9; border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
+    .q-chevron { color: #94a3b8; font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
+    .q-card.open .q-chevron { transform: rotate(180deg); }
+    .q-body { display: none; padding: 0 18px 16px; border-top: 1px solid #f1f5f9; }
+    .q-card.open .q-body { display: block; }
+    .run-row { margin-top: 12px; }
+    .run-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+    .run-response { font-size: 13px; color: #334155; background: #f8fafc; border-radius: 6px; padding: 10px 12px; line-height: 1.5; white-space: pre-wrap; }
+    .run-response.error-text { color: #ef4444; background: #fff5f5; }
+    .run-time { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+    .loading { text-align: center; padding: 80px 20px; color: #64748b; }
+    .error-state { text-align: center; padding: 80px 20px; color: #ef4444; }
+
+    .share-bar { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .share-bar-text { font-size: 13px; color: #1d4ed8; flex: 1; }
+    .share-copy-btn { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+    .share-copy-btn:hover { background: #1d4ed8; }
+
+    .powered { text-align: center; margin-top: 48px; font-size: 13px; color: #94a3b8; }
+    .powered a { color: #6366f1; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="topbar-brand" href="/">Bot<span>Audit</span></a>
+  <a class="topbar-cta" href="/">Test your own bot →</a>
+</div>
+
+<div class="container">
+  <div id="loading" class="loading">Loading report…</div>
+  <div id="error-state" class="error-state" style="display:none">Report not found or has expired.</div>
+
+  <div id="report" style="display:none">
+    <div class="share-bar">
+      <span class="share-bar-text">Share this report with your team</span>
+      <button class="share-copy-btn" onclick="copyLink()">Copy link</button>
+    </div>
+
+    <div class="report-header">
+      <div class="report-title" id="rpt-title">Audit Report</div>
+      <div class="report-meta">
+        <span>🔗 <span id="rpt-url"></span></span>
+        <span>📅 <span id="rpt-date"></span></span>
+        <span>🔁 <span id="rpt-runs"></span> runs per question</span>
+      </div>
+    </div>
+
+    <div class="scorecard" id="scorecard"></div>
+
+    <div class="section-title">Question Results</div>
+    <div id="q-list"></div>
+  </div>
+</div>
+
+<div class="powered">Powered by <a href="/">BotAudit</a> — automated support bot quality testing</div>
+
+<script>
+  const configId = location.pathname.split('/').pop()
+
+  async function load() {
+    try {
+      const res = await fetch(`/api/results/${configId}`)
+      if (!res.ok) throw new Error('not found')
+      const data = await res.json()
+      if (data.status !== 'complete' || !data.results) throw new Error('not complete')
+      render(data)
+    } catch {
+      document.getElementById('loading').style.display = 'none'
+      document.getElementById('error-state').style.display = 'block'
+    }
+  }
+
+  function render(data) {
+    const { results, summary, config = {} } = data
+    document.getElementById('loading').style.display = 'none'
+    document.getElementById('report').style.display = 'block'
+
+    // Header
+    const hostname = config.targetUrl ? new URL(config.targetUrl).hostname : 'Unknown'
+    document.title = `BotAudit — ${hostname}`
+    document.getElementById('rpt-title').textContent = `Bot Audit: ${hostname}`
+    document.getElementById('rpt-url').textContent = config.targetUrl || '—'
+    document.getElementById('rpt-date').textContent = summary.completedAt
+      ? new Date(summary.completedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'Unknown'
+    document.getElementById('rpt-runs').textContent = config.runsPerQuestion || '—'
+
+    // Scorecard
+    const sc = document.getElementById('scorecard')
+    const boxes = [
+      { val: results.length,              lbl: 'Questions',          cls: '' },
+      { val: summary.totalRuns,           lbl: 'Total Runs',         cls: '' },
+      { val: summary.inconsistentAnswers, lbl: 'Inconsistent',       cls: summary.inconsistentAnswers > 0 ? 'warn' : 'good' },
+      { val: summary.errors || 0,         lbl: 'Errors',             cls: (summary.errors || 0) > 0 ? 'bad' : 'good' },
+      { val: summary.avgResponseTimeMs ? ((summary.avgResponseTimeMs / 1000).toFixed(1) + 's') : '—', lbl: 'Avg Response', cls: summary.avgResponseTimeMs > 8000 ? 'warn' : '' },
+    ]
+    sc.innerHTML = boxes.map(b =>
+      `<div class="score-box ${b.cls}"><div class="val">${b.val}</div><div class="lbl">${b.lbl}</div></div>`
+    ).join('')
+
+    // Questions
+    const list = document.getElementById('q-list')
+    list.innerHTML = results.map((q, i) => {
+      const hasError = q.runs.some(r => r.error)
+      const statusCls = hasError ? 'error' : q.consistent ? 'consistent' : 'inconsistent'
+      const runsHtml = q.runs.map((r, ri) =>
+        `<div class="run-row">
+          <div class="run-label">Run ${ri + 1}</div>
+          <div class="run-response ${r.error ? 'error-text' : ''}">${esc(r.error || r.response || '(no response)')}</div>
+          <div class="run-time">${r.responseTimeMs ? (r.responseTimeMs / 1000).toFixed(1) + 's' : ''}</div>
+        </div>`
+      ).join('')
+      return `
+        <div class="q-card" id="qc-${i}">
+          <div class="q-card-header" onclick="toggle(${i})">
+            <div class="q-status ${statusCls}"></div>
+            <div class="q-question">${esc(q.question)}</div>
+            <div class="q-badge">${esc(q.category || 'General')}</div>
+            <div class="q-chevron">▼</div>
+          </div>
+          <div class="q-body">${runsHtml}</div>
+        </div>`
+    }).join('')
+  }
+
+  function toggle(i) {
+    document.getElementById(`qc-${i}`).classList.toggle('open')
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(location.href).then(() => {
+      const btn = document.querySelector('.share-copy-btn')
+      btn.textContent = 'Copied!'
+      setTimeout(() => btn.textContent = 'Copy link', 2000)
+    })
+  }
+
+  load()
+</script>
+</body>
+</html>

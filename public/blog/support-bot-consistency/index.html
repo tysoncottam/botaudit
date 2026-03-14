@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why support bots give different answers to the same question — BotAudit</title>
+  <meta name="description" content="Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.">
+  <link rel="canonical" href="https://botaudit.app/blog/support-bot-consistency/">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Why support bots give different answers to the same question">
+  <meta property="og:description" content="Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.">
+  <meta property="og:url" content="https://botaudit.app/blog/support-bot-consistency/">
+  <meta property="og:type" content="article">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Why support bots give different answers to the same question","description":"Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.","url":"https://botaudit.app/blog/support-bot-consistency/","publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+    .topbar { background: #0f172a; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-brand { color: #fff; font-weight: 700; font-size: 18px; text-decoration: none; }
+    .topbar-brand span { color: #6366f1; }
+    .topbar-cta { background: #6366f1; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; text-decoration: none; }
+    .container { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
+    .back { font-size: 13px; color: #6366f1; text-decoration: none; display: inline-block; margin-bottom: 28px; }
+    .back:hover { text-decoration: underline; }
+    .post-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #6366f1; margin-bottom: 12px; }
+    h1 { font-size: 36px; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 12px; }
+    .post-meta { font-size: 13px; color: #94a3b8; margin-bottom: 36px; }
+    .prose h2 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 36px 0 12px; }
+    .prose p { font-size: 16px; line-height: 1.75; color: #334155; margin-bottom: 18px; }
+    .prose ul, .prose ol { padding-left: 24px; margin-bottom: 18px; }
+    .prose li { font-size: 16px; line-height: 1.75; color: #334155; margin-bottom: 6px; }
+    .prose strong { color: #0f172a; }
+    .example-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin: 24px 0; }
+    .example-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 10px; }
+    .example-q { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 12px; }
+    .example-run { font-size: 13px; color: #475569; background: #f8fafc; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; line-height: 1.5; }
+    .example-run .run-num { font-weight: 700; color: #94a3b8; font-size: 11px; margin-bottom: 4px; }
+    .cta-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 28px 32px; margin: 40px 0; text-align: center; }
+    .cta-box h3 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+    .cta-box p { font-size: 14px; color: #475569; margin-bottom: 18px; }
+    .cta-btn { display: inline-block; background: #6366f1; color: #fff; border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; }
+    .cta-btn:hover { background: #4f46e5; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <a class="topbar-brand" href="/">Bot<span>Audit</span></a>
+  <a class="topbar-cta" href="/">Test your bot →</a>
+</div>
+<div class="container">
+  <a class="back" href="/blog/">← All posts</a>
+  <div class="post-tag">Research</div>
+  <h1>Why support bots give different answers to the same question</h1>
+  <div class="post-meta">March 2025 · 4 min read</div>
+  <div class="prose">
+
+    <p>Ask your support bot "what is your refund policy?" three times. You might get three different answers. Not wildly different — but different enough that a customer would notice, and different enough to cause confusion.</p>
+
+    <p>This is called answer inconsistency, and it's one of the most damaging things a support bot can do. Not because any individual answer is wrong, but because inconsistency signals to the customer that <em>the bot doesn't really know</em> — and once a customer loses trust in your bot, they stop using it and go straight to a human agent.</p>
+
+    <div class="example-box">
+      <div class="example-label">Example — Same question, three different answers</div>
+      <div class="example-q">"How do I get a refund?"</div>
+      <div class="example-run"><div class="run-num">Run 1</div>You can request a refund within 30 days of purchase by contacting our support team.</div>
+      <div class="example-run"><div class="run-num">Run 2</div>Our refund policy allows returns within 14 days for unused products. Visit your account settings to initiate a return.</div>
+      <div class="example-run"><div class="run-num">Run 3</div>Please reach out to our billing team at billing@example.com for refund requests.</div>
+    </div>
+
+    <p>Three answers. Three different timeframes. Three different processes. All from the same bot, on the same day.</p>
+
+    <h2>Why this happens</h2>
+
+    <p>The most common causes of answer inconsistency in Zendesk bots:</p>
+
+    <ul>
+      <li><strong>Multiple articles matching the same query.</strong> If you have both a "Refund Policy" article and a "Returns and Exchanges" article, the bot may pick either one depending on small variations in how the question is phrased — or even randomly if the confidence scores are similar.</li>
+      <li><strong>Stale articles.</strong> Your refund policy changed six months ago but the old article is still in the knowledge base and still gets matched. The bot serves whichever one it happens to find.</li>
+      <li><strong>AI-generated variation.</strong> If you're using an LLM-backed bot (like Zendesk's generative AI answers), the model may phrase the same answer differently each time it generates a response — and sometimes those variations contain factual differences.</li>
+      <li><strong>Session state affecting answers.</strong> Some bots behave differently based on whether a user is logged in, what page they're on, or what they said earlier in the conversation. If your test sessions aren't perfectly isolated, you may see inconsistency caused by session state leaking between tests.</li>
+    </ul>
+
+    <h2>How to find it</h2>
+
+    <p>The only way to reliably detect inconsistency is to ask the same question multiple times in fresh, isolated sessions and compare the answers. One test run isn't enough — you need at least three runs per question to see a pattern.</p>
+
+    <p>This is tedious to do manually. BotAudit automates it: it opens a fresh browser session for each run, sends your question, records the response, and flags any question where the answers differ across runs.</p>
+
+    <h2>How to fix it</h2>
+
+    <p>Once you've identified inconsistent questions, the fix usually involves one of these:</p>
+
+    <ul>
+      <li><strong>Consolidate duplicate articles.</strong> Merge overlapping knowledge base articles so there's one authoritative source per topic.</li>
+      <li><strong>Add answer intents.</strong> In Zendesk, you can create explicit "Answer" flows that trigger on specific phrases — these are more deterministic than article matching.</li>
+      <li><strong>Review and archive stale content.</strong> Remove or archive outdated articles that contradict current policy.</li>
+      <li><strong>Test after every knowledge base update.</strong> Treat your bot like code — changes can have unintended side effects, and you need a test suite to catch them.</li>
+    </ul>
+
+    <div class="cta-box">
+      <h3>Check your bot for inconsistencies</h3>
+      <p>BotAudit runs each question 3× in isolated sessions and flags every inconsistency. Free demo, no account needed.</p>
+      <a class="cta-btn" href="/">Run a free audit →</a>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+════════════════════════════════════════════════════════
+PRODUCT HUNT SUBMISSION DRAFT — BotAudit
+════════════════════════════════════════════════════════
+
+PRODUCT NAME:
+BotAudit
+
+TAGLINE (max 60 chars):
+Automated quality testing for AI support bots
+
+TOPICS/TAGS:
+Customer Support, SaaS, Testing, Automation, Zendesk, AI Tools
+
+THUMBNAIL TEXT:
+BotAudit — Test your support bot before your customers do
+
+────────────────────────────────────────────────────────
+DESCRIPTION (shown on product page)
+────────────────────────────────────────────────────────
+
+Most teams configure their support bot and never test it again.
+BotAudit does.
+
+You give it a URL and a set of questions. It opens your live support
+bot in a real browser, sends each question multiple times in fresh
+sessions, and checks whether the answers are consistent.
+
+The result: a full PDF audit report showing every response,
+every inconsistency, every error, and response times — ready to
+share with your team or use to fix your bot configuration.
+
+→ No setup or account required
+→ Works with Zendesk Messaging and other popular chat platforms
+→ Free 3-question demo, then pay once per audit (no subscription)
+→ Results in 5–10 minutes
+
+────────────────────────────────────────────────────────
+FIRST COMMENT (post as maker on launch day — this gets pinned)
+────────────────────────────────────────────────────────
+
+Hey PH! 👋
+
+I built BotAudit after noticing that no one was systematically
+testing their support bots.
+
+We all know that code needs tests. We do QA on our apps. But the
+bot that handles thousands of customer conversations per month?
+Most teams test it once, manually, and then ship it.
+
+The problem is subtle: support bots can give *inconsistent* answers.
+Ask the same question three times, get three slightly different
+responses. That's not a failure you'd notice in manual testing —
+you'd just see "it answered." But your customers notice over time,
+and it quietly erodes their trust.
+
+BotAudit was born out of frustration with that. I wanted a tool
+that would:
+
+1. Ask each question multiple times (not just once)
+2. Test in fresh browser sessions (no memory between runs)
+3. Flag inconsistencies automatically
+4. Generate a shareable PDF so I could actually show someone
+   what the problem was
+
+Happy to answer any questions about how it works or what we're
+planning next. Go test your support bot! 🔍
+
+— [YOUR NAME]
+
+────────────────────────────────────────────────────────
+LAUNCH CHECKLIST
+────────────────────────────────────────────────────────
+
+Before submitting:
+□ Record a 60–90 second demo video (screen record an audit running)
+  - Show: enter URL → questions → live feed → results → PDF download
+  - No voiceover needed, add captions if possible
+□ Create screenshots (1270×760px):
+  - Screenshot 1: Homepage / configure form
+  - Screenshot 2: Live test feed in progress
+  - Screenshot 3: Results page with scorecard
+  - Screenshot 4: PDF report page
+□ Upload to producthunt.com/posts/new
+□ Schedule for Tuesday or Wednesday, 12:01am PST (best launch days)
+□ Post in your personal networks the morning of launch
+□ Ask 10 people personally to upvote on launch day (not mass blast)
+
+────────────────────────────────────────────────────────
+HUNTER NOTE (if someone else hunts you)
+────────────────────────────────────────────────────────
+
+BotAudit is a tool I've wanted for years — a way to systematically
+test AI support bots the way you'd test software. No subscriptions,
+no setup, no fluff. Just paste a URL and get a PDF report showing
+whether your bot is actually working. Give it a try, it's free to
+demo.

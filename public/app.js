@@ -778,6 +778,26 @@ function updateETA(completed, total) {
 }
 
 // ── Partial download ─────────────────────────────────────────────────────────
+function showShareButton(configId) {
+  const btn = $('share-btn')
+  if (btn) {
+    btn.classList.remove('hidden')
+    btn.dataset.configId = configId
+  }
+}
+
+function copyShareLink() {
+  const configId = $('share-btn').dataset.configId
+  if (!configId) return
+  const url = `${location.origin}/r/${configId}`
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = $('share-btn')
+    const orig = btn.textContent
+    btn.textContent = 'Link copied!'
+    setTimeout(() => btn.textContent = orig, 2000)
+  })
+}
+
 function updatePartialDownloadBar(completedQ, totalQ) {
   if (completedQ === 0) return
   const bar = $('partial-download-bar')
@@ -896,6 +916,9 @@ function handleSSEEvent(event) {
       } else {
         addFeedItem('✓ Test complete! See results below.', 'feed-complete-msg')
       }
+
+      // Show share button
+      showShareButton(activeConfigId)
 
       setTimeout(() => scrollTo('results-section'), 800)
       break

@@ -1,0 +1,102 @@
+[
+  {
+    "company": "Loom",
+    "supportUrl": "https://support.loom.com/hc/en-us",
+    "contactEmail": "support@loom.com"
+  },
+  {
+    "company": "Webflow",
+    "supportUrl": "https://university.webflow.com",
+    "contactEmail": "support@webflow.com"
+  },
+  {
+    "company": "Grammarly",
+    "supportUrl": "https://support.grammarly.com/hc/en-us",
+    "contactEmail": "support@grammarly.com"
+  },
+  {
+    "company": "Canva",
+    "supportUrl": "https://www.canva.com/help",
+    "contactEmail": "support@canva.com"
+  },
+  {
+    "company": "Dropbox",
+    "supportUrl": "https://help.dropbox.com",
+    "contactEmail": "support@dropbox.com"
+  },
+  {
+    "company": "Mailchimp",
+    "supportUrl": "https://mailchimp.com/help",
+    "contactEmail": "support@mailchimp.com"
+  },
+  {
+    "company": "Typeform",
+    "supportUrl": "https://www.typeform.com/help",
+    "contactEmail": "support@typeform.com"
+  },
+  {
+    "company": "Hotjar",
+    "supportUrl": "https://help.hotjar.com",
+    "contactEmail": "support@hotjar.com"
+  },
+  {
+    "company": "Zapier",
+    "supportUrl": "https://zapier.com/help",
+    "contactEmail": "support@zapier.com"
+  },
+  {
+    "company": "Notion",
+    "supportUrl": "https://www.notion.so/help",
+    "contactEmail": "team@makenotion.com"
+  },
+  {
+    "company": "Calendly",
+    "supportUrl": "https://help.calendly.com/hc/en-us",
+    "contactEmail": "support@calendly.com"
+  },
+  {
+    "company": "monday.com",
+    "supportUrl": "https://support.monday.com/hc/en-us",
+    "contactEmail": "support@monday.com"
+  },
+  {
+    "company": "Freshdesk",
+    "supportUrl": "https://support.freshdesk.com/en/support/home",
+    "contactEmail": "support@freshworks.com"
+  },
+  {
+    "company": "Unbounce",
+    "supportUrl": "https://documentation.unbounce.com/hc/en-us",
+    "contactEmail": "support@unbounce.com"
+  },
+  {
+    "company": "Teachable",
+    "supportUrl": "https://support.teachable.com/hc/en-us",
+    "contactEmail": "support@teachable.com"
+  },
+  {
+    "company": "Gusto",
+    "supportUrl": "https://support.gusto.com",
+    "contactEmail": "support@gusto.com"
+  },
+  {
+    "company": "Squarespace",
+    "supportUrl": "https://support.squarespace.com",
+    "contactEmail": "support@squarespace.com"
+  },
+  {
+    "company": "Wix",
+    "supportUrl": "https://support.wix.com/en",
+    "contactEmail": "support@wix.com"
+  },
+  {
+    "company": "Shopify",
+    "supportUrl": "https://help.shopify.com",
+    "contactEmail": "support@shopify.com"
+  },
+  {
+    "company": "BigCommerce",
+    "supportUrl": "https://support.bigcommerce.com/s",
+    "contactEmail": "support@bigcommerce.com"
+  }
+]

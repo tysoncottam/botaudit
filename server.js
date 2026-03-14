@@ -626,6 +626,11 @@ app.post('/api/upload-questions', upload.single('file'), (req, res) => {
   res.json({ questions })
 })
 
+// ── GET /r/:configId — public shareable results page ─────────────────────────
+app.get('/r/:configId', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'share.html'))
+})
+
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   const mode = DEMO_MODE ? 'DEMO MODE (no payment)' : 'LIVE (Stripe payments enabled)'
