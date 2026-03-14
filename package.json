@@ -11,6 +11,8 @@
     "postinstall": "npx playwright install chromium --with-deps"
   },
   "dependencies": {
+    "@sentry/browser": "^10.43.0",
+    "@sentry/node": "^10.43.0",
     "archiver": "^7.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

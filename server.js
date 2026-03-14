@@ -5,6 +5,14 @@
 
 require('dotenv').config()
 
+// ── Sentry (server-side error monitoring) ────────────────────────────────────
+const Sentry = require('@sentry/node')
+Sentry.init({
+  dsn: 'https://ef91866ed864042f89a89d82f136cc68@o4511044528832512.ingest.us.sentry.io/4511044540235776',
+  environment: process.env.NODE_ENV || 'production',
+  tracesSampleRate: 0.2,
+})
+
 const express  = require('express')
 const multer   = require('multer')
 const path     = require('path')
@@ -141,6 +149,7 @@ const app  = express()
 const PORT = parseInt(process.env.PORT || '3000', 10)
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
 
+Sentry.setupExpressErrorHandler(app)
 app.use(express.json({ limit: '5mb' }))
 app.use(express.static(path.join(__dirname, 'public')))
 

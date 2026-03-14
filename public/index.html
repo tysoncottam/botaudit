@@ -26,6 +26,20 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
   <link rel="stylesheet" href="style.css">
 
+  <!-- Sentry (frontend error monitoring) -->
+  <script src="https://browser.sentry-cdn.com/10.43.0/bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    Sentry.init({ dsn: "https://ff2b83a4b05f68bd131cbde640449e93@o4511044528832512.ingest.us.sentry.io/4511044557275136", tracesSampleRate: 0.2 });
+  </script>
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JQ6E8GS4DE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-JQ6E8GS4DE');
+  </script>
+
   <!-- Structured data for Google rich results and AI understanding -->
   <script type="application/ld+json">
   {
