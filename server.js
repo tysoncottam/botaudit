@@ -50,6 +50,7 @@ async function sendCompletionEmail(toEmail, configId, summary) {
     await mailer.sendMail({
       from:    process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to:      toEmail,
+      bcc:     process.env.ADMIN_EMAIL || '',
       subject: 'Your BotAudit report is ready',
       html: `
         <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
@@ -72,6 +73,25 @@ async function sendCompletionEmail(toEmail, configId, summary) {
     console.log(`  Email sent to ${toEmail}`)
   } catch (err) {
     console.error(`  Email send failed: ${err.message}`)
+  }
+}
+
+// ── Email collection log ──────────────────────────────────────────────────────
+const emailLogPath = path.join(__dirname, 'email-log.json')
+function loadEmailLog() {
+  try { return JSON.parse(fs.readFileSync(emailLogPath, 'utf-8')) } catch { return [] }
+}
+function logEmail(email, targetUrl) {
+  const entry = { email, targetUrl, date: new Date().toISOString() }
+  console.log(`  [EMAIL COLLECTED] ${email} (${targetUrl})`)
+  try {
+    const log = loadEmailLog()
+    if (!log.some(e => e.email === email)) {
+      log.push(entry)
+      fs.writeFileSync(emailLogPath, JSON.stringify(log, null, 2))
+    }
+  } catch (err) {
+    console.error(`  Email log write failed: ${err.message}`)
   }
 }
 
@@ -232,6 +252,13 @@ app.post('/api/check-bot', async (req, res) => {
     console.error('check-bot error:', err.message, err.stack)
     res.json({ reachable: false, error: err.message })
   }
+})
+
+// ── GET /api/emails — admin-only email list ──────────────────────────────────
+app.get('/api/emails', (req, res) => {
+  const key = req.query.key
+  if (!key || key !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'unauthorized' })
+  res.json(loadEmailLog())
 })
 
 // ── GET /api/health — diagnostic endpoint ────────────────────────────────────
@@ -416,6 +443,7 @@ app.get('/api/stream/:configId', async (req, res) => {
         .catch((err) => console.warn(`  PDF generation failed for ${configId}: ${err.message}`))
 
       if (session.config.notifyEmail) {
+        logEmail(session.config.notifyEmail, session.config.targetUrl)
         sendCompletionEmail(session.config.notifyEmail, configId, event.summary).catch(() => {})
       }
     }
