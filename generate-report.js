@@ -383,7 +383,7 @@ async function generateReport({ config, results, summary, outputDir }) {
 
   const pdfPath = path.join(outputDir, 'audit-report.pdf')
 
-  const browser = await chromium.launch()
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
   try {
     const page = await browser.newPage()
     await page.goto(pathToFileURL(htmlPath).href, { waitUntil: 'networkidle' })

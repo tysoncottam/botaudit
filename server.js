@@ -229,7 +229,20 @@ app.post('/api/check-bot', async (req, res) => {
     const result = await checkBot({ targetUrl, preChatSteps, preChatEmail })
     res.json(result)
   } catch (err) {
+    console.error('check-bot error:', err.message, err.stack)
     res.json({ reachable: false, error: err.message })
+  }
+})
+
+// ── GET /api/health — diagnostic endpoint ────────────────────────────────────
+app.get('/api/health', async (req, res) => {
+  try {
+    const { chromium } = require('playwright')
+    const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+    await browser.close()
+    res.json({ ok: true, chromium: 'working' })
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
   }
 })
 
