@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BotAudit — Automated Support Bot Quality Testing</title>
+  <meta name="description" content="Find out if your AI support bot is actually helping customers — or quietly failing them. One-time automated testing with detailed results and screenshots.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ── Resume Banner (shown when a previous session is found) ───────────────── -->
+<div class="resume-banner hidden" id="resume-banner">
+  <div class="resume-banner-inner">
+    <div class="resume-info">
+      <strong id="resume-status-label">Previous test found</strong>
+      <span id="resume-url-label"></span>
+    </div>
+    <div class="resume-actions">
+      <button class="btn btn-primary btn-sm" id="resume-btn">Resume</button>
+      <button class="btn btn-ghost btn-sm resume-dismiss" id="resume-dismiss">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+      <span class="logo-text">BotAudit</span>
+    </div>
+    <div id="demo-badge" class="demo-badge hidden"></div>
+  </div>
+</header>
+
+<!-- ── Hero ────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-inner">
+
+      <!-- Left: copy -->
+      <div class="hero-content">
+        <div class="hero-eyebrow">Automated Support Bot Testing</div>
+        <h1 class="hero-title">Is your support bot<br><span class="accent">actually working?</span></h1>
+        <p class="hero-subtitle">
+          We automatically open your chat widget, ask real customer questions, and give you
+          a detailed report on how your bot handles escalations, billing issues, and edge cases —
+          before your customers find out the hard way.
+        </p>
+        <div class="hero-cta">
+          <a href="#configure" class="btn btn-primary btn-lg">Test My Bot Now</a>
+          <a href="#how-it-works" class="btn btn-ghost btn-lg">See How It Works</a>
+        </div>
+        <div class="hero-proof">
+          <div class="proof-item"><span class="proof-icon">✓</span> Works with Zendesk, Intercom, Drift &amp; more</div>
+          <div class="proof-item"><span class="proof-icon">✓</span> Results in minutes</div>
+          <div class="proof-item"><span class="proof-icon">✓</span> One-time payment</div>
+          <div class="proof-item"><span class="proof-icon">✓</span> No account required</div>
+        </div>
+      </div>
+
+      <!-- Right: product demo visual -->
+      <div class="hero-visual" aria-hidden="true">
+        <div class="demo-visual-wrap">
+
+        <!-- Chat widget mockup -->
+        <div class="demo-chat-widget">
+          <div class="demo-chat-header">
+            <div class="demo-chat-avatar">S</div>
+            <div class="demo-chat-meta">
+              <div class="demo-chat-name">Your support bot</div>
+              <div class="demo-chat-online"><span class="demo-online-dot"></span>Online</div>
+            </div>
+            <div class="demo-chat-dots">•••</div>
+          </div>
+          <div class="demo-chat-body">
+            <div class="demo-time-label">3:12 PM</div>
+            <div class="demo-msg demo-msg-bot">
+              <div class="demo-bubble">Hi! I'm your support assistant. How can I help you today?</div>
+            </div>
+            <div class="demo-msg demo-msg-user">
+              <div class="demo-bubble">Cancel my subscription immediately.</div>
+            </div>
+            <div class="demo-msg demo-msg-bot">
+              <div class="demo-bubble">Please visit our Help Center and submit a cancellation request. It may take 3–5 business days to process.</div>
+            </div>
+          </div>
+          <div class="demo-chat-input">
+            <span class="demo-input-placeholder">Type a message…</span>
+            <div class="demo-send-btn">➤</div>
+          </div>
+        </div>
+
+        <!-- Floating: question being tested -->
+        <div class="demo-float demo-float-question">
+          <div class="demo-float-eyebrow">Testing Q7 of 20</div>
+          <div class="demo-float-qtext">"Cancel my subscription immediately"</div>
+        </div>
+
+        <!-- Floating: inconsistency results card -->
+        <div class="demo-float demo-float-results">
+          <div class="demo-results-header">
+            <span class="demo-warn-icon">⚠</span> Inconsistent answers detected
+          </div>
+          <div class="demo-result-row">
+            <span class="demo-run-pill">Run 1</span>
+            <span class="demo-run-text">Redirected to Help Center</span>
+            <span class="demo-dot demo-dot-warn"></span>
+          </div>
+          <div class="demo-result-row">
+            <span class="demo-run-pill">Run 2</span>
+            <span class="demo-run-text">Offered immediate refund</span>
+            <span class="demo-dot demo-dot-warn"></span>
+          </div>
+          <div class="demo-result-row">
+            <span class="demo-run-pill">Run 3</span>
+            <span class="demo-run-text">Escalated to human agent</span>
+            <span class="demo-dot demo-dot-ok"></span>
+          </div>
+        </div>
+
+        <!-- Floating: screenshot chip -->
+        <div class="demo-float demo-float-screenshot">📸 Screenshot captured</div>
+
+        </div><!-- /demo-visual-wrap -->
+      </div><!-- /hero-visual -->
+
+    </div><!-- /hero-inner -->
+  </div>
+</section>
+
+<!-- ── How It Works ─────────────────────────────────────────────────────────── -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <h2 class="section-title">How it works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Configure your test</h3>
+          <p>Paste your support page URL. Choose from 20 pre-built questions or upload your own. Pick how many times to run each question.</p>
+        </div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>We test your bot live</h3>
+          <p>Our automated browser opens your chat widget, sends each question, waits for a real response, and takes a screenshot — exactly like a customer would.</p>
+        </div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Get your full report</h3>
+          <p>See every response, consistency scores, response times, and screenshots. Download a CSV for your team and screenshots for your records.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── What We Test ─────────────────────────────────────────────────────────── -->
+<section class="what-we-test">
+  <div class="container">
+    <h2 class="section-title">What our 20 default questions test</h2>
+    <div class="category-grid">
+      <div class="category-card">
+        <div class="category-icon">🆘</div>
+        <h4>Human Escalation</h4>
+        <p>Does it connect frustrated customers to a real person — or loop them forever?</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">💳</div>
+        <h4>Billing Issues</h4>
+        <p>Double charges, refund requests, cancellations — does it handle money questions properly?</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">👤</div>
+        <h4>Account Management</h4>
+        <p>Login failures, data deletion, cancellation — the questions that drive churn if answered wrong.</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">🔒</div>
+        <h4>Security &amp; Jailbreaks</h4>
+        <p>Can a bad actor trick your bot into revealing its system prompt or acting outside its role?</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">⚖️</div>
+        <h4>Privacy &amp; Compliance</h4>
+        <p>GDPR / CCPA data requests, account compromise — legal exposure if these fail.</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">🌀</div>
+        <h4>Edge Cases</h4>
+        <p>Gibberish input, all-caps panic, multi-topic messages — where bots usually break.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Configure & Pay ──────────────────────────────────────────────────────── -->
+<section class="configure-section" id="configure">
+  <div class="container">
+    <h2 class="section-title">Configure your audit</h2>
+    <p class="section-sub">Fill in the form below. Your report will be ready in minutes.</p>
+
+    <div class="configure-layout">
+
+      <!-- Left: Form -->
+      <div class="form-panel">
+
+        <!-- Step 1: URL -->
+        <div class="form-block" id="form-block-url">
+          <label class="form-label" for="target-url">
+            <span class="step-badge">1</span>
+            Your support page URL
+          </label>
+          <div class="url-input-wrap">
+            <input
+              type="url"
+              id="target-url"
+              class="form-input"
+              placeholder="https://support.yourcompany.com"
+              autocomplete="off"
+              spellcheck="false"
+            >
+            <div id="bot-check-status" class="bot-check-status hidden">
+              <span class="bot-check-spinner hidden" id="bot-check-spinner"></span>
+              <span id="bot-check-text"></span>
+            </div>
+          </div>
+          <p id="url-error" class="form-error hidden">Please enter a valid URL — e.g. <strong>support.yourcompany.com</strong></p>
+          <p class="form-hint">Paste the URL of the page where your chat widget lives. We'll open it in a real browser and interact with the widget.</p>
+
+          <div class="prechat-section">
+            <label class="toggle-label" for="prechat-master-toggle">
+              <input type="checkbox" id="prechat-master-toggle">
+              <span class="toggle-switch"></span>
+              My bot needs an email or a specific button clicked first
+            </label>
+            <div class="prechat-steps-wrap hidden" id="prechat-steps-wrap">
+
+              <!-- Email requirement -->
+              <div class="prechat-subsection">
+                <div class="prechat-sub-label">
+                  <label class="prechat-check-wrap">
+                    <input type="checkbox" id="prechat-email-enabled">
+                    <span>Requires an email address</span>
+                  </label>
+                </div>
+                <div class="prechat-email-row hidden" id="prechat-email-row">
+                  <input type="email" class="form-input" id="prechat-email-input" placeholder="test@example.com">
+                  <p class="form-hint" style="margin-top:6px">We'll enter this address when the bot asks for one before the conversation starts.</p>
+                </div>
+              </div>
+
+              <!-- Routing steps -->
+              <div class="prechat-subsection">
+                <div class="prechat-sub-label">
+                  <label class="prechat-check-wrap">
+                    <input type="checkbox" id="prechat-steps-enabled">
+                    <span>Requires clicking a button first</span>
+                  </label>
+                </div>
+                <div class="prechat-steps-body hidden" id="prechat-steps-body">
+                  <p class="form-hint" style="margin-top:6px;margin-bottom:10px">Add each button to click in order — e.g. "Support", then "Billing".</p>
+                  <div class="prechat-steps-list" id="prechat-steps-list"></div>
+                  <div class="prechat-add-row">
+                    <input type="text" class="form-input" id="prechat-step-input" placeholder='Button text, e.g. "Support"'>
+                    <button type="button" class="btn btn-primary btn-sm" id="prechat-add-btn">Add</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Questions -->
+        <div class="form-block">
+          <label class="form-label">
+            <span class="step-badge">2</span>
+            Questions to ask
+          </label>
+          <div class="radio-group">
+            <label class="radio-card">
+              <input type="radio" name="question-source" value="demo">
+              <div class="radio-card-inner">
+                <div class="radio-card-title">Try 3 free questions <span class="badge badge-free">Free</span></div>
+                <div class="radio-card-desc">Run 3 questions against your bot — no payment or account needed. Single run only.</div>
+              </div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="question-source" value="default" checked>
+              <div class="radio-card-inner">
+                <div class="radio-card-title">Default 20 questions <span class="badge badge-recommended">Recommended</span></div>
+                <div class="radio-card-desc">Our expert-designed set covering escalation, billing, security, compliance, and edge cases.</div>
+              </div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="question-source" value="custom">
+              <div class="radio-card-inner">
+                <div class="radio-card-title">Upload my own questions</div>
+                <div class="radio-card-desc">Upload a CSV, TXT, or JSON file with your own questions. One question per line for TXT.</div>
+              </div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="question-source" value="both">
+              <div class="radio-card-inner">
+                <div class="radio-card-title">Default + my questions</div>
+                <div class="radio-card-desc">Run both the default 20 and your custom questions for maximum coverage.</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- File upload / manual entry (shown for custom/both) -->
+          <div id="upload-section" class="upload-section hidden">
+            <div class="upload-tabs">
+              <button class="upload-tab active" id="tab-file">Upload file</button>
+              <button class="upload-tab" id="tab-manual">Type manually</button>
+            </div>
+
+            <!-- File upload panel -->
+            <div class="upload-tab-panel" id="panel-file">
+              <div class="upload-drop" id="upload-drop">
+                <input type="file" id="file-input" accept=".csv,.txt,.json" class="hidden">
+                <div class="upload-drop-inner">
+                  <div class="upload-icon">📄</div>
+                  <div class="upload-text">
+                    <strong>Drop your file here</strong> or <a href="#" class="upload-link" id="upload-link">click to browse</a>
+                  </div>
+                  <div class="upload-hint">CSV, TXT, or JSON — one question per line for TXT — max 512KB</div>
+                </div>
+              </div>
+              <div class="upload-template-row">
+                <a href="#" class="upload-template-link" id="download-template">⬇ Download question template</a>
+              </div>
+              <div id="upload-status" class="upload-status hidden"></div>
+            </div>
+
+            <!-- Manual entry panel -->
+            <div class="upload-tab-panel hidden" id="panel-manual">
+              <div class="manual-entry-row">
+                <input type="text" class="form-input" id="manual-question-input" placeholder="Type a question and press Add…">
+                <button class="btn btn-primary btn-sm" id="manual-add-btn">Add</button>
+              </div>
+              <div id="manual-questions-list" class="manual-questions-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Runs per question -->
+        <div class="form-block" id="form-block-runs">
+          <label class="form-label">
+            <span class="step-badge">3</span>
+            Runs per question
+          </label>
+          <div class="runs-choice">
+            <label class="runs-option">
+              <input type="radio" name="runs" value="1">
+              <div class="runs-card">
+                <div class="runs-num">1×</div>
+                <div class="runs-label">Single run</div>
+                <div class="runs-price-tag">$0.75 / run</div>
+              </div>
+            </label>
+            <label class="runs-option">
+              <input type="radio" name="runs" value="3" checked>
+              <div class="runs-card runs-card-recommended">
+                <div class="badge-float">Most popular</div>
+                <div class="runs-num">3×</div>
+                <div class="runs-label">Triple run</div>
+                <div class="runs-price-tag">$0.50 / run <span class="runs-savings">save 33%</span></div>
+              </div>
+            </label>
+            <label class="runs-option">
+              <input type="radio" name="runs" value="5">
+              <div class="runs-card runs-card-recommended">
+                <div class="badge-float badge-float-gold">Best value</div>
+                <div class="runs-num">5×</div>
+                <div class="runs-label">Five runs</div>
+                <div class="runs-price-tag">$0.40 / run <span class="runs-savings">save 47%</span></div>
+              </div>
+            </label>
+          </div>
+          <div class="runs-why">
+            <strong>Why multiple runs?</strong> AI bots are non-deterministic — the same question can get a different answer every time.
+            Running each question 3 or 5 times lets us detect inconsistent responses, which is often the most actionable finding.
+            With just 1 run, you can easily miss a bot that works fine sometimes but fails 30% of the time.
+          </div>
+        </div>
+
+        <!-- Step 4: Screenshots -->
+        <div class="form-block">
+          <label class="form-label">
+            <span class="step-badge">4</span>
+            Screenshots
+          </label>
+          <div class="toggle-row">
+            <label class="toggle-label" for="screenshot-toggle">
+              <input type="checkbox" id="screenshot-toggle" checked>
+              <span class="toggle-switch"></span>
+              Include a screenshot of each bot response
+            </label>
+            <span class="toggle-price" id="screenshot-price-label">+$0.25 per question</span>
+          </div>
+          <p class="form-hint">Screenshots capture exactly what your customers see — useful for sharing with your team, documenting bugs, or showing stakeholders what needs to be fixed.</p>
+        </div>
+
+        <!-- Step 5: Email notification -->
+        <div class="form-block">
+          <label class="form-label" for="notify-email">
+            <span class="step-badge">5</span>
+            Email notification <span class="optional-badge">Optional</span>
+          </label>
+          <input
+            type="email"
+            id="notify-email"
+            class="form-input"
+            placeholder="you@company.com"
+            autocomplete="email"
+          >
+          <p class="form-hint">We'll email you when the audit finishes so you don't have to watch the page. No account required.</p>
+        </div>
+
+      </div><!-- /form-panel -->
+
+      <!-- Right: Price Summary -->
+      <div class="price-panel">
+        <div class="price-card" id="price-card">
+          <div class="price-card-title">Your audit summary</div>
+
+          <div class="price-line-items" id="price-line-items">
+            <div class="price-line">
+              <span id="price-q-label">20 questions × 3 runs</span>
+              <span id="price-q-value">$45.00</span>
+            </div>
+            <div class="price-line" id="screenshot-price-line">
+              <span>Screenshots (20 questions)</span>
+              <span id="price-ss-value">$5.00</span>
+            </div>
+            <div class="price-divider"></div>
+            <div class="price-line price-total">
+              <span>Total</span>
+              <span id="price-total">$50.00</span>
+            </div>
+          </div>
+
+          <div class="price-included">
+            <div class="price-included-title">What's included:</div>
+            <ul class="price-included-list" id="included-list">
+              <li>✓ Automated live browser testing</li>
+              <li>✓ CSV report (Excel-ready)</li>
+              <li>✓ JSON data file</li>
+              <li id="screenshot-included-item"><span class="included-icon">✓</span> Screenshots of every response</li>
+              <li>✓ Consistency scoring per question</li>
+              <li>✓ Response time measurements</li>
+            </ul>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="pay-btn" disabled>
+            <span id="pay-btn-text">Enter a URL to continue</span>
+          </button>
+
+          <div class="price-guarantee">
+            <span>🔒</span> One-time payment. No subscription. No account required.
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /configure-layout -->
+  </div>
+</section>
+
+<!-- ── Progress Section (hidden until test starts) ──────────────────────────── -->
+<section class="progress-section hidden" id="progress-section">
+  <div class="container">
+    <div class="progress-header">
+      <h2><span class="spinner" id="test-spinner"></span>Testing your bot...</h2>
+      <p id="progress-subtitle">Opening your chat widget and sending questions</p>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+    </div>
+    <div class="progress-stats">
+      <span id="progress-count">0 / 0 runs completed</span>
+      <span id="progress-eta"></span>
+      <span id="progress-pct">0%</span>
+    </div>
+
+    <!-- Partial download (shown once ≥1 question complete) -->
+    <div class="partial-download-bar hidden" id="partial-download-bar">
+      <span id="partial-download-label">5 questions completed</span>
+      <button class="btn btn-ghost btn-sm" id="partial-download-btn">⬇ Download completed so far</button>
+    </div>
+
+    <div class="progress-body">
+
+      <!-- Left: Live feed -->
+      <div class="live-feed" id="live-feed">
+        <div class="live-feed-title">Live test feed</div>
+        <div class="live-feed-items" id="live-feed-items">
+          <div class="feed-item feed-waiting">Waiting to start...</div>
+        </div>
+        <div class="feed-pagination hidden" id="feed-pagination">
+          <button class="btn btn-ghost btn-sm" id="feed-prev">← Prev</button>
+          <span class="feed-page-info" id="feed-page-info">Page 1 of 1</span>
+          <button class="btn btn-ghost btn-sm" id="feed-next">Next →</button>
+        </div>
+      </div>
+
+      <!-- Right: Live preview -->
+      <div class="preview-panel" id="preview-panel">
+        <div class="preview-panel-title">Live preview</div>
+        <div class="preview-url-bar" id="preview-url-bar"></div>
+
+        <!-- Iframe embed (best effort) -->
+        <div class="preview-iframe-wrap" id="preview-iframe-wrap">
+          <iframe id="preview-iframe" sandbox="allow-scripts allow-same-origin allow-forms" loading="lazy"></iframe>
+          <div class="preview-iframe-blocked hidden" id="preview-blocked">
+            <span>⚠</span> This site blocks embedding.<br>Showing test screenshots below.
+          </div>
+        </div>
+
+        <!-- Latest screenshot from the test browser -->
+        <div class="preview-screenshot-wrap" id="preview-screenshot-wrap">
+          <div class="preview-screenshot-label">Latest test screenshot</div>
+          <img id="preview-screenshot" src="" alt="Latest screenshot" class="hidden" onclick="showLightbox(this.src)">
+          <div class="preview-screenshot-empty" id="preview-screenshot-empty">Screenshots will appear here as each run completes</div>
+        </div>
+      </div>
+
+    </div><!-- /progress-body -->
+  </div>
+</section>
+
+<!-- ── Results Section (hidden until complete) ──────────────────────────────── -->
+<section class="results-section hidden" id="results-section">
+  <div class="container">
+
+    <div id="refund-notice" class="refund-notice hidden">
+      <div class="refund-notice-icon">⚠</div>
+      <div class="refund-notice-body">
+        <strong>We couldn't find a chat widget at that URL</strong>
+        <p id="refund-notice-msg">This usually means the page doesn't have a chat widget, or it requires a pre-chat step (like selecting a department) before accepting messages.</p>
+        <p id="refund-notice-paid-msg" class="hidden">If you were charged and believe this was our error, <a href="mailto:support@botaudit.io" class="refund-link">contact us for a full refund</a>.</p>
+        <div class="refund-actions">
+          <button class="btn btn-primary btn-sm" onclick="retryWithNewUrl()">Try a different URL</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-header">
+      <h2>Audit Complete</h2>
+      <p class="results-timestamp" id="results-timestamp"></p>
+    </div>
+
+    <div class="summary-cards" id="summary-cards">
+      <div class="summary-card">
+        <div class="summary-num" id="sum-total">—</div>
+        <div class="summary-label">Total runs</div>
+      </div>
+      <div class="summary-card summary-card-warn" id="sum-inconsistent-card">
+        <div class="summary-num" id="sum-inconsistent">—</div>
+        <div class="summary-label">Inconsistent answers</div>
+      </div>
+      <div class="summary-card summary-card-error" id="sum-errors-card">
+        <div class="summary-num" id="sum-errors">—</div>
+        <div class="summary-label">Errors / timeouts</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-num" id="sum-avgtime">—</div>
+        <div class="summary-label">Avg response time</div>
+      </div>
+    </div>
+
+    <div class="results-actions">
+      <button class="btn btn-primary" id="download-btn">Download Full Report (ZIP)</button>
+    </div>
+
+    <div class="results-list" id="results-list">
+      <!-- Question cards injected by JS -->
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Footer ───────────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+        <span class="logo-text">BotAudit</span>
+      </div>
+      <div class="footer-copy">
+        One-time automated testing for AI support bots.
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Error Toast ──────────────────────────────────────────────────────────── -->
+<div class="toast hidden" id="toast">
+  <span id="toast-msg"></span>
+  <button class="toast-close" onclick="hideToast()">✕</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

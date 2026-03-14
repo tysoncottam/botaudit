@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment variables (never commit secrets)
+.env
+
+# Audit results (user data, screenshots, PDFs)
+results/
+
+# Demo state
+demo-used.json
+
+# Test/debug scripts
+test-manual.js
+test-sites.js
+
+# Claude context
+.claude/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
