@@ -203,7 +203,7 @@ function restoreSessionFromDisk(configId) {
 app.get('/api/config', (req, res) => {
   const ip = getClientIP(req)
   res.json({
-    demoAvailable: true, // TEMP: always available for testing — restore to: !demoUsedIPs.has(ip)
+    demoAvailable: !demoUsedIPs.has(ip),
     stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
     pricing: {
       perRun1x: PRICE_PER_RUN_1X,
@@ -245,10 +245,9 @@ app.post('/api/demo', (req, res) => {
   if (!targetUrl) return res.status(400).json({ error: 'Target URL is required' })
 
   const ip = getClientIP(req)
-  // TEMP: IP restriction disabled for testing — re-enable before launch
-  // if (demoUsedIPs.has(ip)) {
-  //   return res.status(403).json({ error: 'demo_used', message: 'The free demo has already been used from this network.' })
-  // }
+  if (demoUsedIPs.has(ip)) {
+    return res.status(403).json({ error: 'demo_used', message: 'The free demo has already been used from this network.' })
+  }
 
   const demoQuestions = [
     {
@@ -279,8 +278,7 @@ app.post('/api/demo', (req, res) => {
     preChatEmail: req.body.preChatEmail || '',
   })
   sessions.get(configId).status = 'paid'
-  // TEMP: disabled for testing — re-enable before launch
-  // markDemoUsed(ip)
+  markDemoUsed(ip)
 
   return res.json({ demoMode: true, configId })
 })
