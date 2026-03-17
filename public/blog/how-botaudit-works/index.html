@@ -48,8 +48,9 @@
     .step-img { display: block; width: 100%; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-top: 16px; }
 
     /* ── FEATURE CARDS ── */
-    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; align-items: start; }
     details.feat { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    details.feat > summary { min-height: 72px; }
     details.feat[open] { box-shadow: 0 4px 20px rgba(99,102,241,0.12); border-color: #c7d2fe; }
     details.feat summary { display: flex; align-items: center; gap: 10px; padding: 16px; cursor: pointer; list-style: none; user-select: none; }
     details.feat summary::-webkit-details-marker { display: none; }
@@ -218,7 +219,7 @@
         <span class="feat-icon">🎓</span>
         <span class="feat-text">
           <h4>Letter Grade (A&ndash;F)</h4>
-          <p>Quality (50%), reliability (25%), consistency (25%)</p>
+          <p>Quality &middot; Reliability &middot; Consistency</p>
         </span>
         <span class="chevron">&#9660;</span>
       </summary>
