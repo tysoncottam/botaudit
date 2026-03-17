@@ -165,7 +165,7 @@
 
   <div class="prose">
     <p>BotAudit automatically tests your AI support bot &mdash; asking real customer questions, multiple times, in a real browser &mdash; and grades it A&ndash;F on response quality, reliability, and consistency. No API keys. No integrations. Just paste a URL.</p>
-    <p>We ran it on 8 real companies&rsquo; bots. Here&rsquo;s what we found.</p>
+    <p>We ran it on 7 real companies&rsquo; bots. Here&rsquo;s what we found.</p>
   </div>
 
   <!-- ── HOW IT WORKS ── -->
@@ -323,7 +323,7 @@
   </div>
 
   <!-- ── REAL RESULTS ── -->
-  <div class="section-label">Real results &mdash; we tested 8 companies &mdash; click any to see the full breakdown</div>
+  <div class="section-label">Real results &mdash; we tested 7 companies &mdash; click any to see the full breakdown</div>
   <div class="scorecard">
     <div class="company-card" onclick="openModal('typeform')">
       <div class="company-name">Typeform</div>
@@ -367,12 +367,7 @@
       <div class="company-score">52/100</div>
       <div class="company-tap">View details &rarr;</div>
     </div>
-    <div class="company-card" onclick="openModal('pluralsight')">
-      <div class="company-name">Pluralsight</div>
-      <div class="company-grade" style="color:#c8102e;">F</div>
-      <div class="company-score">12/100</div>
-      <div class="company-tap">View details &rarr;</div>
-    </div>
+
   </div>
 
   <div class="cta-box">
@@ -545,22 +540,6 @@ const COMPANIES = {
       ]},
     ],
     rec: 'Work with Ada support to investigate the input reliability issue in React environments. This is likely a configuration issue with how keydown/keyup events are handled, not a fundamental platform limitation.'
-  },
-  pluralsight: {
-    name: 'Pluralsight',
-    platform: 'Qualified',
-    headline: 'Widget not accessible to automated testing tools',
-    grade: 'F', score: '12/100', color: '#c8102e',
-    quality: { val: 'N/A', cls: '' },
-    reliability: { val: '10%', cls: 'bad' },
-    consistency: { val: 'N/A', cls: '' },
-    summary: `Pluralsight's Qualified routing widget applies anti-bot detection and doesn't render in headless browser environments. 9 of 10 questions couldn't be tested. The F grade reflects that a widget that can't be reached can't help customers — and bot-detection that blocks automated testing tools may also affect users on VPNs, accessibility software, or older browsers. Qualified is a routing-only widget (no free-text input), which also limits what customers can express.`,
-    examples: [
-      { label: 'All 9 questions that failed', badge: { text: 'Widget did not load', color: '#ef4444' }, responses: [
-        { cls: 'bad', text: 'The Qualified chat widget did not appear in headless mode. Anti-bot detection prevented widget rendering.' }
-      ]},
-    ],
-    rec: 'If your widget uses bot-detection that blocks headless browsers, consider whether it may also be affecting real users on VPNs or certain corporate networks. Qualified\'s routing-only design also means customers can\'t express problems outside preset options — consider adding a free-text fallback.'
   }
 }
 
