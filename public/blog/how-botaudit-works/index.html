@@ -61,10 +61,11 @@
     .example-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; color: #fff; margin-bottom: 8px; }
 
     /* Step numbers */
-    .step { display: flex; gap: 16px; margin: 24px 0; align-items: flex-start; }
+    .step { display: flex; gap: 16px; margin: 24px 0 0; align-items: flex-start; }
     .step-num { flex-shrink: 0; width: 36px; height: 36px; background: #6366f1; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
     .step-content { flex: 1; }
     .step-content h3 { margin-top: 4px; margin-bottom: 6px; }
+    .step-screenshot { display: block; width: 100%; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.08); margin: 14px 0 28px; }
 
     /* Features grid */
     .features { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0 28px; }
@@ -153,6 +154,7 @@
         <p>Go to <strong>botaudit.app</strong> and paste the URL of your support page &mdash; the one where the chat widget appears. BotAudit auto-detects 15+ chat platforms including Zendesk, Intercom, Drift, Freshchat, Ada, Forethought, and more. No API keys or integration needed.</p>
       </div>
     </div>
+    <img class="step-screenshot" src="step2-full-config.png" alt="BotAudit configuration form with URL input and question options">
 
     <div class="step">
       <div class="step-num">2</div>
@@ -161,14 +163,16 @@
         <p>Choose from 20 default test questions across 6 categories (billing, account, escalation, security, privacy, edge cases) or write your own. Pick how many times each question is asked (1x, 3x, or 5x). More runs = better consistency data. Optionally enable screenshots to capture every interaction.</p>
       </div>
     </div>
+    <img class="step-screenshot" src="step2-runs-config.png" alt="BotAudit question categories: Human Escalation, Billing Issues, Account Management, Security, Privacy, Edge Cases">
 
     <div class="step">
       <div class="step-num">3</div>
       <div class="step-content">
         <h3>Pay once and watch it run</h3>
-        <p>One-time payment via Stripe &mdash; no subscription. Pricing starts at $0.40-$0.75 per question per run depending on volume. There&rsquo;s also a <strong>free demo</strong> (3 questions, 1 run) to try before you buy. After payment, you see real-time progress as each question is tested.</p>
+        <p>One-time payment via Stripe &mdash; no subscription. Pricing starts at $0.40-$0.75 per question per run depending on volume. There&rsquo;s also a <strong>free demo</strong> (3 questions, 1 run) to try before you buy. After payment, BotAudit opens a real browser, finds your chat widget, and tests each question. You can see screenshots of every interaction in the final report.</p>
       </div>
     </div>
+    <img class="step-screenshot" src="step3-bot-testing.png" alt="BotAudit testing Grammarly's support bot in a real browser — the bot responding to a billing question">
 
     <div class="step">
       <div class="step-num">4</div>
@@ -177,6 +181,7 @@
         <p>When testing completes, you get a downloadable PDF with your bot&rsquo;s letter grade, an executive summary, category-level breakdown, specific recommendations, and every question/response with screenshots. You also get a shareable link to view results online.</p>
       </div>
     </div>
+    <img class="step-screenshot" src="step4-pdf-report.png" alt="BotAudit PDF report showing Grammarly's bot grade C (76/100) with executive summary, recommendations, and category breakdown">
 
     <h2>What&rsquo;s in the report</h2>
 
