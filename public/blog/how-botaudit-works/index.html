@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How BotAudit works: real audits of 8 support bots — BotAudit</title>
+  <meta name="description" content="A walkthrough of BotAudit with real results from testing Squarespace, Grammarly, OpenAI, Calendly, and more. See the full process from URL to PDF report.">
+  <link rel="canonical" href="https://botaudit.app/blog/how-botaudit-works/">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="How BotAudit works: real audits of 8 support bots">
+  <meta property="og:description" content="We tested 8 real support bots and graded them A-F. See the full process and real results.">
+  <meta property="og:url" content="https://botaudit.app/blog/how-botaudit-works/">
+  <meta property="og:type" content="article">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"How BotAudit works: real audits of 8 support bots","description":"A walkthrough of BotAudit with real results from testing Squarespace, Grammarly, OpenAI, Calendly, and more.","url":"https://botaudit.app/blog/how-botaudit-works/","publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
+  <script src="https://browser.sentry-cdn.com/10.43.0/bundle.min.js" crossorigin="anonymous"></script>
+  <script>Sentry.init({ dsn: "https://ff2b83a4b05f68bd131cbde640449e93@o4511044528832512.ingest.us.sentry.io/4511044557275136", tracesSampleRate: 0.2 });</script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JQ6E8GS4DE"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-JQ6E8GS4DE');</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+    .topbar { background: #0f172a; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-brand { color: #fff; font-weight: 700; font-size: 18px; text-decoration: none; }
+    .topbar-brand span { color: #6366f1; }
+    .topbar-cta { background: #6366f1; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; text-decoration: none; }
+    .container { max-width: 800px; margin: 0 auto; padding: 48px 20px 80px; }
+    .back { font-size: 13px; color: #6366f1; text-decoration: none; display: inline-block; margin-bottom: 28px; }
+    .back:hover { text-decoration: underline; }
+    .post-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #6366f1; margin-bottom: 12px; }
+    h1 { font-size: 36px; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 12px; }
+    .post-meta { font-size: 13px; color: #94a3b8; margin-bottom: 36px; }
+    .prose h2 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 36px 0 12px; }
+    .prose h3 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 28px 0 10px; }
+    .prose p { font-size: 16px; line-height: 1.75; color: #334155; margin-bottom: 18px; }
+    .prose ul, .prose ol { padding-left: 24px; margin-bottom: 18px; }
+    .prose li { font-size: 16px; line-height: 1.75; color: #334155; margin-bottom: 6px; }
+    .prose strong { color: #0f172a; }
+    .prose code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+    .cta-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 28px 32px; margin: 40px 0; text-align: center; }
+    .cta-box h3 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+    .cta-box p { font-size: 14px; color: #475569; margin-bottom: 18px; }
+    .cta-btn { display: inline-block; background: #6366f1; color: #fff; border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; }
+    .cta-btn:hover { background: #4f46e5; }
+
+    /* Scorecard */
+    .scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .score-card { background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; }
+    .score-card .company { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .score-card .grade { font-size: 32px; font-weight: 900; line-height: 1; }
+    .score-card .score { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+    /* Example boxes */
+    .example-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin: 16px 0 24px; }
+    .example-box .example-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 8px; }
+    .example-box .example-q { font-weight: 700; color: #0f172a; margin-bottom: 8px; font-size: 15px; }
+    .example-box .example-a { background: #f8fafc; border-radius: 6px; padding: 12px 14px; font-size: 14px; line-height: 1.6; color: #334155; margin-top: 6px; border-left: 3px solid #6366f1; }
+    .example-box .example-a.bad { border-left-color: #ef4444; }
+    .example-box .example-a.good { border-left-color: #22c55e; }
+    .example-box .example-a.warn { border-left-color: #f59e0b; }
+    .example-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; color: #fff; margin-bottom: 8px; }
+
+    /* Step numbers */
+    .step { display: flex; gap: 16px; margin: 24px 0; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 36px; height: 36px; background: #6366f1; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
+    .step-content { flex: 1; }
+    .step-content h3 { margin-top: 4px; margin-bottom: 6px; }
+
+    /* Features grid */
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0 28px; }
+    .feature-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+    .feature-card h4 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .feature-card p { font-size: 13px; color: #64748b; line-height: 1.5; }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 28px; }
+      .scorecard { grid-template-columns: repeat(2, 1fr); }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <a class="topbar-brand" href="/">Bot<span>Audit</span></a>
+  <a class="topbar-cta" href="/">Test your bot &rarr;</a>
+</div>
+<div class="container">
+  <a class="back" href="/blog/">&larr; All posts</a>
+  <div class="post-tag">Product Walkthrough</div>
+  <h1>How BotAudit works: we tested 8 real support bots and graded them</h1>
+  <div class="post-meta">March 2026 &middot; 8 min read</div>
+  <div class="prose">
+
+    <p>We built BotAudit to answer one question: <strong>is your support bot actually helping customers, or is it making things worse?</strong></p>
+
+    <p>To show you exactly how it works, we ran real audits on 8 companies&rsquo; support bots &mdash; from Squarespace to OpenAI. Each bot was asked 10 real customer questions, 3 times each, in separate browser sessions. Here are the real results.</p>
+
+    <h2>The results at a glance</h2>
+
+    <p>Each bot received a letter grade (A&ndash;F) based on three factors: <strong>consistency</strong> (does it give the same answer each time?), <strong>response quality</strong> (is the answer actually helpful?), and <strong>reliability</strong> (does it respond without errors?).</p>
+
+    <div class="scorecard">
+      <div class="score-card">
+        <div class="company">Typeform</div>
+        <div class="grade" style="color: #0057b7;">B-</div>
+        <div class="score">82/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">Squarespace</div>
+        <div class="grade" style="color: #0057b7;">C+</div>
+        <div class="score">78/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">Angel</div>
+        <div class="grade" style="color: #0057b7;">C+</div>
+        <div class="score">78/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">Grammarly</div>
+        <div class="grade" style="color: #e07b00;">C</div>
+        <div class="score">76/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">Nature&rsquo;s Sunshine</div>
+        <div class="grade" style="color: #c8102e;">D</div>
+        <div class="score">62/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">OpenAI</div>
+        <div class="grade" style="color: #c8102e;">F</div>
+        <div class="score">57/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">Calendly</div>
+        <div class="grade" style="color: #c8102e;">F</div>
+        <div class="score">53/100</div>
+      </div>
+      <div class="score-card">
+        <div class="company">Pluralsight</div>
+        <div class="grade" style="color: #c8102e;">F</div>
+        <div class="score">12/100</div>
+      </div>
+    </div>
+
+    <p>Only one bot scored a B or higher. Most had significant gaps in how they handle billing questions, escalation requests, and edge cases. Let&rsquo;s walk through how we tested them.</p>
+
+    <h2>How it works: 4 steps from URL to report</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h3>Paste the URL where your chat widget lives</h3>
+        <p>Go to <strong>botaudit.app</strong> and paste the URL of your support page &mdash; the one where the chat widget appears. BotAudit auto-detects 15+ chat platforms including Zendesk, Intercom, Drift, Freshchat, Ada, Forethought, and more. No API keys or integration needed.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h3>Configure your questions and runs</h3>
+        <p>Choose from 20 default test questions across 6 categories (billing, account, escalation, security, privacy, edge cases) or write your own. Pick how many times each question is asked (1x, 3x, or 5x). More runs = better consistency data. Optionally enable screenshots to capture every interaction.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h3>Pay once and watch it run</h3>
+        <p>One-time payment via Stripe &mdash; no subscription. Pricing starts at $0.40-$0.75 per question per run depending on volume. There&rsquo;s also a <strong>free demo</strong> (3 questions, 1 run) to try before you buy. After payment, you see real-time progress as each question is tested.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h3>Get your graded PDF report</h3>
+        <p>When testing completes, you get a downloadable PDF with your bot&rsquo;s letter grade, an executive summary, category-level breakdown, specific recommendations, and every question/response with screenshots. You also get a shareable link to view results online.</p>
+      </div>
+    </div>
+
+    <h2>What&rsquo;s in the report</h2>
+
+    <div class="features">
+      <div class="feature-card">
+        <h4>Letter Grade (A&ndash;F)</h4>
+        <p>Overall score from consistency, quality, and reliability. Squarespace got a C+ (78/100). Calendly got an F (53/100).</p>
+      </div>
+      <div class="feature-card">
+        <h4>Executive Summary</h4>
+        <p>A plain-English summary of what your bot does well and where it struggles, with the top 3-5 recommendations.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Category Breakdown</h4>
+        <p>Separate grades for billing, account, escalation, security, privacy, and edge cases &mdash; so you know exactly which area needs work.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Semantic Consistency</h4>
+        <p>We don&rsquo;t just check if the text is identical &mdash; we use semantic similarity to determine if the answers <em>mean</em> the same thing. An AI bot that rephrases correctly scores well.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Quality Scoring (1&ndash;5)</h4>
+        <p>Each response is rated on helpfulness: did it answer the question, deflect to a help page, or just say &ldquo;I didn&rsquo;t understand&rdquo;?</p>
+      </div>
+      <div class="feature-card">
+        <h4>Screenshots</h4>
+        <p>Every single interaction is captured as a screenshot &mdash; see exactly what your customers see when they talk to the bot.</p>
+      </div>
+    </div>
+
+    <h2>Real examples from the audits</h2>
+
+    <h3>Squarespace (C+) &mdash; Consistent but relies on escalation</h3>
+
+    <p>Squarespace&rsquo;s bot scored well on consistency &mdash; 9 out of 10 questions got the same answer every time. But when it didn&rsquo;t know the answer, it defaulted to &ldquo;let&rsquo;s open a support case&rdquo; without trying to help first.</p>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Billing</div>
+      <div class="example-q">&ldquo;I was charged twice, can I get a refund?&rdquo;</div>
+      <span class="example-badge" style="background: #22c55e;">Identical across 3 runs</span>
+      <div class="example-a good">If you received multiple charges for different amounts, they're likely for separate subscriptions. Each Squarespace subscription renews independently...</div>
+    </div>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Security</div>
+      <div class="example-q">&ldquo;I think my account has been hacked or compromised.&rdquo;</div>
+      <span class="example-badge" style="background: #f59e0b;">Escalated without help</span>
+      <div class="example-a warn">To open a support case, complete and press Enter for each field. Choose your topic...</div>
+    </div>
+
+    <p><strong>Recommendation:</strong> Add direct security response content to the bot instead of immediately routing to a ticket form. A hacked account is urgent &mdash; the bot should provide immediate steps (change password, enable 2FA) while also escalating.</p>
+
+    <h3>Grammarly (C) &mdash; Smart AI, but inconsistent wording triggers false alarms</h3>
+
+    <p>Grammarly uses a Forethought AI bot that gives genuinely helpful answers. The challenge: because it generates fresh responses each time, traditional &ldquo;exact match&rdquo; testing would flag every answer as inconsistent. Our semantic similarity analysis correctly identified that 4 of the 7 &ldquo;inconsistent&rdquo; answers actually conveyed the same information.</p>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Account</div>
+      <div class="example-q">&ldquo;How do I reset my password?&rdquo;</div>
+      <span class="example-badge" style="background: #22c55e;">Semantically Equivalent (0.85 similarity)</span>
+      <div class="example-a good"><strong>Run 1:</strong> Here's how you can reset your Grammarly password: Go to the password reset page, enter your email address, and click &ldquo;Send.&rdquo;</div>
+      <div class="example-a good" style="margin-top: 8px;"><strong>Run 2:</strong> To reset your password, visit the Grammarly login page and click &ldquo;Forgot password.&rdquo; Enter your email and follow the instructions sent to your inbox.</div>
+    </div>
+
+    <p>Different words, same answer. BotAudit correctly scores this as <strong>Equivalent</strong>, not Inconsistent.</p>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Edge Case</div>
+      <div class="example-q">&ldquo;asdfghjkl qwerty&rdquo;</div>
+      <span class="example-badge" style="background: #ef4444;">Contradictory (0.48 similarity)</span>
+      <div class="example-a bad"><strong>Run 1:</strong> I'm sorry, but I couldn't understand your request. Could you please rephrase?</div>
+      <div class="example-a bad" style="margin-top: 8px;"><strong>Run 3:</strong> It seems like your message might have been entered by mistake. Could you let me know what you need help with?</div>
+    </div>
+
+    <p>Even the error handling gives different messages &mdash; a minor issue, but it shows the bot doesn&rsquo;t have a standardized fallback.</p>
+
+    <h3>Nature&rsquo;s Sunshine (D) &mdash; Bot can&rsquo;t understand basic questions</h3>
+
+    <p>Nature&rsquo;s Sunshine uses a Zoom Contact Center bot that struggled with 4 out of 10 questions, responding with &ldquo;Sorry, I didn&rsquo;t catch that.&rdquo; It handled password resets and refund policy well, but failed on billing disputes, urgency, and security concerns.</p>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Billing</div>
+      <div class="example-q">&ldquo;I was charged twice, can I get a refund?&rdquo;</div>
+      <span class="example-badge" style="background: #ef4444;">Failed &mdash; Bot didn't understand</span>
+      <div class="example-a bad">Sorry, I didn't catch that. Could you please rephrase it?</div>
+    </div>
+
+    <p><strong>Recommendation:</strong> The bot needs billing-related intents added. &ldquo;Charged twice&rdquo; and &ldquo;double charge&rdquo; should map to the refund process &mdash; this is one of the most common support requests.</p>
+
+    <h3>OpenAI (F) &mdash; Good answers, but wildly inconsistent</h3>
+
+    <p>OpenAI&rsquo;s bot gives substantive, helpful answers &mdash; when it works. The problem: it gave a different answer on almost every run. Only the &ldquo;I need to speak to a human&rdquo; question got a consistent response (immediate escalation). The bot also requires an email before responding, which adds friction.</p>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Escalation</div>
+      <div class="example-q">&ldquo;I need to speak with a human agent.&rdquo;</div>
+      <span class="example-badge" style="background: #22c55e;">Identical across 3 runs</span>
+      <div class="example-a good">Escalated to a support specialist; you'll be contacted via email within 24 hours.</div>
+    </div>
+
+    <p>Interestingly, OpenAI&rsquo;s bot scored 3.5/5 on quality &mdash; the answers are good, they&rsquo;re just different every time. For a company building AI, the inconsistency is ironic.</p>
+
+    <h3>Calendly (F) &mdash; Bot often ignores the question entirely</h3>
+
+    <p>Calendly&rsquo;s Ada-powered bot frequently responded with its greeting (&ldquo;What can I help you with?&rdquo;) instead of actually answering the question. This suggests the message submission is unreliable or the bot isn&rsquo;t processing inputs correctly.</p>
+
+    <div class="example-box">
+      <div class="example-label">Question &mdash; Privacy</div>
+      <div class="example-q">&ldquo;How do I request a copy of my personal data?&rdquo;</div>
+      <span class="example-badge" style="background: #ef4444;">Failed &mdash; Question ignored</span>
+      <div class="example-a bad">What can I help you with? What can I help you with?</div>
+    </div>
+
+    <h2>Supported platforms</h2>
+
+    <p>BotAudit automatically detects and interacts with <strong>15+ chat platforms</strong>:</p>
+
+    <ul>
+      <li>Zendesk (classic + messaging + Sunshine Conversations)</li>
+      <li>Intercom</li>
+      <li>Drift</li>
+      <li>Crisp</li>
+      <li>HubSpot</li>
+      <li>Freshchat</li>
+      <li>Tidio, LiveChat, Tawk.to, Olark</li>
+      <li>Zoom Contact Center</li>
+      <li>Gorgias, Qualified, Forethought, Ada</li>
+      <li>Plus any generic chat widget</li>
+    </ul>
+
+    <p>It also automatically handles cookie banners, popup overlays, pre-chat forms, and consent dialogs so it can reach the bot without manual setup.</p>
+
+    <h2>What you can do with the results</h2>
+
+    <p>The audit report isn&rsquo;t just a score &mdash; it&rsquo;s a roadmap. For each company we tested, the report included specific, actionable recommendations:</p>
+
+    <ul>
+      <li><strong>Nature&rsquo;s Sunshine:</strong> &ldquo;Add billing-related intents. The bot fails to understand 4 of 10 common questions.&rdquo;</li>
+      <li><strong>Squarespace:</strong> &ldquo;Add direct security response content instead of routing everything to a ticket form.&rdquo;</li>
+      <li><strong>Grammarly:</strong> &ldquo;Response times average 67s, well above the 3-5s standard.&rdquo;</li>
+      <li><strong>Typeform:</strong> &ldquo;Add a clear path to a human agent when customers request escalation.&rdquo;</li>
+    </ul>
+
+    <p>After making changes to your bot, run the audit again to measure improvement. BotAudit is a one-time payment per audit &mdash; no subscription lock-in.</p>
+
+    <div class="cta-box">
+      <h3>Try it on your own bot</h3>
+      <p>Free demo: 3 questions, 1 run, no payment required. See how your bot scores.</p>
+      <a class="cta-btn" href="/">Test My Bot Now</a>
+    </div>
+
+    <h2>How we built the grading system</h2>
+
+    <p>Traditional bot testing tools compare responses with exact string matching. That means an AI bot that says &ldquo;Here&rsquo;s how to reset your password&rdquo; vs &ldquo;To reset your password, follow these steps&rdquo; would be flagged as &ldquo;inconsistent&rdquo; &mdash; even though both answers are correct.</p>
+
+    <p>BotAudit uses <strong>semantic similarity analysis</strong> (token-based cosine similarity) to classify response consistency into four tiers:</p>
+
+    <ul>
+      <li><strong>Identical</strong> &mdash; Same text every time (knowledge-base bots like Squarespace)</li>
+      <li><strong>Equivalent</strong> &mdash; Different wording, same information (AI bots like Grammarly)</li>
+      <li><strong>Variable</strong> &mdash; Same topic, different information provided</li>
+      <li><strong>Contradictory</strong> &mdash; Conflicting answers (the real problem)</li>
+    </ul>
+
+    <p>The overall grade combines consistency (40%), response quality (40%), and reliability (20%). Quality is scored 1&ndash;5 based on whether the response actually helped, provided actionable steps, or just deflected.</p>
+
+    <div class="cta-box">
+      <h3>See how your bot compares</h3>
+      <p>Run a free 3-question audit in under 2 minutes. No account required.</p>
+      <a class="cta-btn" href="/">Get Started Free</a>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
