@@ -119,7 +119,7 @@ async function dismissOverlays(page) {
       if ((await el.count()) > 0 && (await el.isVisible({ timeout: 500 }))) {
         // Make sure this isn't a chat widget button
         const parent = await el.evaluate(node => {
-          const p = node.closest('[id*="chat" i], [class*="chat" i], [id*="intercom" i], [class*="intercom" i], [id*="zendesk" i], [class*="livesdk" i]')
+          const p = node.closest('[id*="chat" i], [class*="chat" i], [id*="intercom" i], [class*="intercom" i], [id*="zendesk" i], [class*="livesdk" i], [id*="ada-" i], [id*="forethought" i], [id*="qualified" i], [class*="ada-" i]')
           return p ? true : false
         }).catch(() => false)
         if (parent) { console.log(`  [overlay] skipped modal close (inside chat widget): ${sel}`); continue }
@@ -160,6 +160,9 @@ async function openChatWidget(page, preChatEmail) {
       'olark':          all.includes('olark') || !!document.querySelector('#olark-wrapper'),
       'zoom-cc':        all.includes('zoom.us') || !!document.querySelector('#zoom-contactcenter-chat-root'),
       'gorgias':        all.includes('gorgias') || !!document.querySelector('[id*="gorgias"]'),
+      'qualified':      !!document.querySelector('iframe#q-messenger-frame, iframe[title*="Qualified"]'),
+      'forethought':    all.includes('forethought') || !!document.querySelector('iframe#forethought-chat'),
+      'ada':            all.includes('ada.support') || !!document.querySelector('iframe#ada-chat-frame, iframe#ada-button-frame, iframe[id*="ada-"]'),
     }
     return Object.entries(markers).filter(([, v]) => v).map(([k]) => k)
   })
@@ -208,25 +211,131 @@ async function openChatWidget(page, preChatEmail) {
 
     // ── Intercom ──
     'intercom': async () => {
-      // Try direct selector first, then iframe
+      // Try direct selector first, then iframe launcher
       const sel = '.intercom-launcher, [class*="intercom-launcher"], [data-intercom-target="open"], .intercom-app button'
       const directCount = await page.locator(sel).count()
       if (directCount > 0) {
         await page.locator(sel).first().click()
-        await sleep(2500)
-        return 'intercom'
+        await sleep(3000)
+        if (page.isClosed()) throw new Error('Intercom navigated away from page')
+      } else {
+        // Try the launcher iframe
+        const launcherFrame = page.frameLocator('iframe[name="intercom-launcher-frame"]')
+        try {
+          await launcherFrame.locator('button').first().waitFor({ timeout: 5000 })
+          await launcherFrame.locator('button').first().click()
+          await sleep(3000)
+        } catch {
+          // Try the Intercom messenger iframe directly (pre-opened)
+          const messengerFrame = page.frameLocator('iframe[name="intercom-messenger-frame"]')
+          try {
+            const count = await messengerFrame.locator('button, textarea, [contenteditable]').count()
+            if (count > 0) return 'intercom-messenger'
+          } catch { /* continue */ }
+          throw new Error('Intercom launcher not found')
+        }
       }
-      const frame = page.frameLocator('iframe[name="intercom-launcher-frame"]')
-      await frame.locator('button').first().waitFor({ timeout: 3000 })
-      await frame.locator('button').first().click()
-      await sleep(2500)
-      return 'intercom-iframe'
+
+      // After opening, Intercom often shows a help center / home view first
+      // Navigate to the chat/compose view by clicking "Messages" tab then "Send us a message"
+
+      // Wait for the Intercom frame to expand from 1x1 (tracker) to full messenger size
+      const messengerSel = 'iframe[name="intercom-messenger-frame"], iframe[id="intercom-frame"], iframe[title*="Intercom" i], iframe[name*="intercom" i]'
+      const expandDeadline = Date.now() + 8000
+      while (Date.now() < expandDeadline) {
+        const iframes = await page.locator(messengerSel).all()
+        for (const f of iframes) {
+          const box = await f.boundingBox().catch(() => null)
+          if (box && box.width > 100 && box.height > 100) {
+            console.log(`  [intercom] messenger frame expanded: ${Math.round(box.width)}x${Math.round(box.height)}`)
+            break
+          }
+        }
+        // Check if any frame is now large enough
+        const anyLarge = await Promise.any(
+          (await page.locator(messengerSel).all()).map(async f => {
+            const box = await f.boundingBox().catch(() => null)
+            return box && box.width > 100 && box.height > 100
+          })
+        ).catch(() => false)
+        if (anyLarge) break
+        await sleep(500)
+      }
+      await sleep(1000)
+
+      // Use frameLocator (works with cross-origin iframes) instead of contentFrame
+      const msgFrame = page.frameLocator(messengerSel)
+
+      // Step 1: Click "Messages" tab in the bottom navigation
+      const tabSelectors = [
+        '[aria-label="Messages" i]',
+        'button:has-text("Messages")',
+        'a:has-text("Messages")',
+        '[data-testid*="messages"]',
+      ]
+      let navigated = false
+      for (const tabSel of tabSelectors) {
+        try {
+          const tab = msgFrame.locator(tabSel).first()
+          if ((await tab.count()) > 0 && (await tab.isVisible())) {
+            console.log(`  [intercom] clicking Messages tab: ${tabSel}`)
+            await tab.click({ timeout: 3000 })
+            await sleep(2000)
+            navigated = true
+            break
+          }
+        } catch { /* continue */ }
+      }
+      if (!navigated) console.log('  [intercom] no Messages tab found — may already be on chat view')
+
+      // Step 2: Click "Send us a message" / compose / new conversation button
+      const chatNavSelectors = [
+        'a:has-text("Send us a message")',
+        'a:has-text("Send a message")',
+        'button:has-text("Send us a message")',
+        'button:has-text("Send a message")',
+        'button:has-text("Chat with us")',
+        'button:has-text("New conversation")',
+        'button:has-text("Start a conversation")',
+        '[aria-label*="new conversation" i]',
+        '[aria-label*="compose" i]',
+        '[aria-label*="write a message" i]',
+        '[data-testid*="new-conversation"]',
+        '[data-testid*="compose"]',
+      ]
+      for (const navSel of chatNavSelectors) {
+        try {
+          const btn = msgFrame.locator(navSel).first()
+          if ((await btn.count()) > 0 && (await btn.isVisible())) {
+            console.log(`  [intercom] navigating to chat via: ${navSel}`)
+            await btn.click({ timeout: 3000 })
+            await sleep(2000)
+            break
+          }
+        } catch { /* continue */ }
+      }
+      return 'intercom'
     },
 
     // ── Drift ──
     'drift': async () => {
-      await page.waitForSelector('#drift-widget, iframe[title*="Drift"], [data-testid="drift-widget"]', { timeout: 4000 })
-      await page.locator('#drift-widget button, iframe[title*="Drift"]').first().click()
+      // Drift can be slow to render — give it up to 10s
+      const driftSel = '#drift-widget, iframe[title*="Drift" i], [data-testid="drift-widget"], #drift-frame, .drift-widget-controller'
+      await page.waitForSelector(driftSel, { timeout: 10000 })
+      // Try clicking the iframe controller first, then fallback to buttons
+      const iframe = page.locator('iframe[title*="Drift" i], #drift-frame').first()
+      if ((await iframe.count()) > 0 && (await iframe.isVisible())) {
+        const frame = await iframe.contentFrame()
+        if (frame) {
+          const btn = frame.locator('button, [role="button"]').first()
+          if ((await btn.count()) > 0) {
+            await btn.click({ timeout: 3000 })
+            await sleep(2500)
+            return 'drift-iframe'
+          }
+        }
+      }
+      await page.locator('#drift-widget button, .drift-widget-controller button').first().click()
       await sleep(2500)
       return 'drift'
     },
@@ -459,6 +568,124 @@ async function openChatWidget(page, preChatEmail) {
       await sleep(2500)
       return 'gorgias'
     },
+
+    // ── Qualified ──
+    'qualified': async () => {
+      const sel = 'iframe#q-messenger-frame, iframe[title*="Qualified"]'
+      await page.waitForSelector(sel, { state: 'visible', timeout: 8000 })
+      const frame = page.frameLocator(sel)
+
+      // Qualified often shows routing buttons first ("I need customer support", etc.)
+      // Click through support/help routing options to reach the chat input
+      const routingSelectors = [
+        'button:has-text("customer support")',
+        'button:has-text("support")',
+        'button:has-text("help")',
+        'button:has-text("question")',
+        'a:has-text("customer support")',
+        'a:has-text("support")',
+        'a:has-text("help")',
+      ]
+      try {
+        for (const routeSel of routingSelectors) {
+          const btn = frame.locator(routeSel).first()
+          if ((await btn.count()) > 0 && (await btn.isVisible())) {
+            console.log(`  [qualified] clicking routing option: ${routeSel}`)
+            await btn.click({ timeout: 3000 })
+            await sleep(3000)
+            break
+          }
+        }
+      } catch { /* cross-origin — proceed anyway */ }
+
+      // Check if there's now a text input
+      try {
+        const inputCount = await frame.locator('textarea, input[type="text"], [contenteditable="true"]').count()
+        if (inputCount > 0) {
+          console.log('  [qualified] chat input found after routing')
+          return 'qualified'
+        }
+      } catch { /* cross-origin */ }
+
+      // If still no input, click the messenger iframe to activate it
+      await page.locator(sel).first().click()
+      await sleep(2500)
+      return 'qualified'
+    },
+
+    // ── Forethought AI ──
+    'forethought': async () => {
+      const sel = 'iframe#forethought-chat, iframe[title*="Virtual Assistant"]'
+      await page.waitForSelector(sel, { state: 'visible', timeout: 8000 })
+      // Forethought widget is usually already visible — check for input inside
+      const frame = page.frameLocator(sel)
+      try {
+        // Look for a text input or a "Ask a question" button
+        const input = frame.locator('textarea, input[type="text"], [contenteditable="true"]')
+        if ((await input.count()) > 0) {
+          console.log('  [forethought] widget already has input')
+          return 'forethought'
+        }
+        // Try clicking the widget to expand it
+        const btn = frame.locator('button, [role="button"]').first()
+        if ((await btn.count()) > 0) {
+          await btn.click({ timeout: 3000 })
+          await sleep(2000)
+        }
+      } catch { /* cross-origin */ }
+      return 'forethought'
+    },
+
+    // ── Ada ──
+    'ada': async () => {
+      const btnFrameSel = 'iframe#ada-button-frame, iframe[title*="Chat Button" i]'
+      const chatFrameSel = 'iframe#ada-chat-frame, iframe[title*="ada-chat" i]'
+
+      // Check if chat frame is already open (e.g. from generic strategy click)
+      try {
+        const chatVisible = await page.locator(chatFrameSel).first().isVisible().catch(() => false)
+        if (chatVisible) {
+          console.log('  [ada] chat frame already open')
+          return 'ada'
+        }
+      } catch { /* continue */ }
+
+      // Try clicking the Ada button frame to open the chat
+      try {
+        await page.waitForSelector(btnFrameSel, { timeout: 8000 })
+        const btnFrame = page.frameLocator(btnFrameSel)
+        const btn = btnFrame.locator('button, [role="button"]').first()
+        await btn.waitFor({ state: 'visible', timeout: 5000 })
+        await btn.click({ timeout: 3000 })
+        console.log('  [ada] clicked button frame')
+        await sleep(3000)
+        // Wait for chat frame
+        await page.waitForSelector(chatFrameSel, { state: 'visible', timeout: 10000 })
+        console.log('  [ada] chat frame opened')
+        return 'ada'
+      } catch (e) {
+        console.log(`  [ada] button frame approach failed: ${e.message.slice(0, 60)}`)
+      }
+
+      // Fallback: try clicking page-level Ada elements (some sites render a launcher outside iframes)
+      try {
+        const launcher = page.locator('[class*="ada-embed"], [id*="ada-"] button, [title*="chat" i]').first()
+        if ((await launcher.count()) > 0 && (await launcher.isVisible())) {
+          await launcher.click()
+          await sleep(3000)
+          await page.waitForSelector(chatFrameSel, { state: 'visible', timeout: 8000 })
+          console.log('  [ada] chat frame opened via page-level launcher')
+          return 'ada'
+        }
+      } catch { /* continue */ }
+
+      // Last fallback: check if chat frame appeared anyway
+      try {
+        await page.waitForSelector(chatFrameSel, { state: 'visible', timeout: 5000 })
+        return 'ada'
+      } catch { /* no ada chat */ }
+      throw new Error('Ada widget not clickable')
+    },
   }
 
   // ── Generic fallback (always tried last) ──────────────────────────────
@@ -512,7 +739,7 @@ async function openChatWidget(page, preChatEmail) {
 
   throw new Error(
     'Could not find or open a chat widget on this page. ' +
-    'Supported platforms: Zendesk, Intercom, Drift, Crisp, HubSpot, Freshchat, Tidio, LiveChat, Tawk.to, Olark, Zoom Contact Center, Gorgias, and generic widgets. ' +
+    'Supported platforms: Zendesk, Intercom, Drift, Crisp, HubSpot, Freshchat, Tidio, LiveChat, Tawk.to, Olark, Zoom Contact Center, Gorgias, Qualified, Forethought, Ada, and generic widgets. ' +
     'Make sure the chat widget is visible on the page you entered.'
   )
 }
@@ -622,6 +849,45 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
       console.log(`  [input] searching... (attempt ${loopCount}, ${Math.round((deadline - Date.now()) / 1000)}s left)`)
     }
 
+    // ── Dismiss in-widget consent dialogs (terms, privacy notices, GDPR) ────
+    // These appear inside chat widget iframes and block the input until dismissed
+    if (loopCount <= 3) {
+      const consentSelectors = [
+        'button:has-text("Ok")',
+        'button:has-text("OK")',
+        'button:has-text("Accept")',
+        'button:has-text("I agree")',
+        'button:has-text("Got it")',
+        'button:has-text("Continue")',
+        'button:has-text("Agree")',
+        'button:has-text("Dismiss")',
+        '[aria-label="Dismiss" i]',
+        '[aria-label="Close" i]',
+      ]
+      // Check all iframes for consent dialogs
+      const iframeEls = await page.locator('iframe').all()
+      for (const iframeEl of iframeEls) {
+        try {
+          const frame = await iframeEl.contentFrame()
+          if (!frame) continue
+          const bodyText = await frame.locator('body').innerText().catch(() => '')
+          // Only try consent buttons if the frame mentions privacy/terms/consent
+          if (!/privacy|terms|consent|monitor|retain|heads-up|cookie/i.test(bodyText)) continue
+          for (const cSel of consentSelectors) {
+            try {
+              const btn = frame.locator(cSel).first()
+              if ((await btn.count()) > 0 && (await btn.isVisible())) {
+                console.log(`  [input] dismissed in-widget consent dialog: ${cSel}`)
+                await btn.click({ timeout: 2000 })
+                await sleep(1500)
+                break
+              }
+            } catch { /* continue */ }
+          }
+        } catch { /* continue */ }
+      }
+    }
+
     // ── Check all iframes (most chat widgets render in iframes) ──────────────
     const iframeEls = await page.locator('iframe').all()
     for (const el of iframeEls) {
@@ -634,11 +900,49 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
 
         const inputCount = await frame.locator(chatInputSel).count()
         if (inputCount > 0) {
-          console.log(`  [input] found in iframe id="${id}" title="${title}" (${inputCount} inputs)`)
-          return { frame, input: frame.locator(chatInputSel).last(), bodyLocator: frame.locator('body') }
+          // Check if input is actually visible (not behind a routing/help view)
+          const lastInput = frame.locator(chatInputSel).last()
+          const isVisible = await lastInput.isVisible().catch(() => false)
+          if (isVisible) {
+            console.log(`  [input] found in iframe id="${id}" title="${title}" (${inputCount} inputs, visible)`)
+            return { frame, input: lastInput, bodyLocator: frame.locator('body') }
+          }
+          // Input exists but hidden — try clicking "Send a message", "Chat", or routing buttons to reveal it
+          console.log(`  [input] found in iframe id="${id}" but not visible — trying to navigate to chat view`)
+          const chatNavSelectors = [
+            'button:has-text("Send us a message")',
+            'button:has-text("Send a message")',
+            'button:has-text("Chat with us")',
+            'button:has-text("Chat")',
+            'button:has-text("New conversation")',
+            'button:has-text("Start a conversation")',
+            'a:has-text("Send us a message")',
+            'a:has-text("Send a message")',
+            'a:has-text("Chat with us")',
+            '[aria-label*="new conversation" i]',
+            '[aria-label*="send a message" i]',
+            '[data-testid*="new-conversation"]',
+          ]
+          for (const navSel of chatNavSelectors) {
+            try {
+              const navBtn = frame.locator(navSel).first()
+              if ((await navBtn.count()) > 0 && (await navBtn.isVisible())) {
+                console.log(`  [input] clicking chat nav: ${navSel}`)
+                await navBtn.click({ timeout: 3000 })
+                await sleep(2000)
+                break
+              }
+            } catch { /* continue */ }
+          }
+          // Re-check if input is now visible
+          const nowVisible = await lastInput.isVisible().catch(() => false)
+          if (nowVisible) {
+            console.log(`  [input] input now visible after navigation`)
+            return { frame, input: lastInput, bodyLocator: frame.locator('body') }
+          }
         }
 
-        // No input yet — widget may be showing a routing menu.
+        // No visible input — widget may be showing a routing menu.
         // Auto-click the first visible button to advance past it.
         try {
           const btns = frame.locator('button, [role="button"]').filter({ visible: true })
@@ -791,14 +1095,77 @@ async function sendMessageAndGetReply(page, message, preChatEmail = '') {
   } else {
     await input.waitFor({ state: 'attached', timeout: 5000 })
     await input.click({ force: true })
-    await input.fill(message)
+    // Use type() instead of fill() — fill() doesn't trigger React/Vue event handlers
+    // which causes controlled inputs (Ada, Intercom, etc.) to ignore the value
+    await input.fill('')  // clear first
+    await input.type(message, { delay: 15 })
   }
 
   // Snapshot text before sending
   const textBefore = await getBodyText()
 
   await input.press('Enter')
-  await sleep(3000)
+  await sleep(1500)
+
+  // Check if text changed — if not, Enter didn't submit. Try clicking a send button.
+  const textAfterEnter = await getBodyText()
+  if (textAfterEnter === textBefore) {
+    console.log('  [send] Enter did not submit — looking for send button')
+    const sendBtnSelectors = [
+      'button[aria-label*="send" i]',
+      'button[aria-label*="submit" i]',
+      'button[title*="send" i]',
+      'button[type="submit"]',
+      'button[class*="send" i]',
+      'button[class*="submit" i]',
+      '[data-testid*="send" i]',
+      '[data-testid*="submit" i]',
+    ]
+
+    // Helper: try to find and click a send button in a given context
+    async function trySendButton(searchCtx, label) {
+      // First try explicit send-labeled buttons
+      for (const sel of sendBtnSelectors) {
+        try {
+          const btn = searchCtx.locator(sel).first()
+          if ((await btn.count()) > 0 && (await btn.isVisible().catch(() => true))) {
+            await btn.click({ force: true, timeout: 2000 })
+            console.log(`  [send] clicked send button (${label}): ${sel}`)
+            return true
+          }
+        } catch { /* continue */ }
+      }
+      // Fallback: find any button near/after the textarea (send buttons are usually adjacent)
+      try {
+        const nearbyBtn = searchCtx.locator('textarea ~ button, textarea + button, [class*="input"] button, [class*="footer"] button, [class*="composer"] button').first()
+        if ((await nearbyBtn.count()) > 0 && (await nearbyBtn.isVisible().catch(() => true))) {
+          await nearbyBtn.click({ force: true, timeout: 2000 })
+          console.log(`  [send] clicked adjacent button (${label})`)
+          return true
+        }
+      } catch { /* continue */ }
+      return false
+    }
+
+    // Try in the same frame/context as the input
+    const searchCtx = ctx.frame ? ctx.frame : page
+    let sent = await trySendButton(searchCtx, 'input context')
+
+    // Fallback: try all iframes for a send button
+    if (!sent) {
+      const iframeEls = await page.locator('iframe').all()
+      for (const iframeEl of iframeEls) {
+        if (sent) break
+        try {
+          const frame = await iframeEl.contentFrame()
+          if (!frame) continue
+          sent = await trySendButton(frame, 'iframe')
+        } catch { /* continue */ }
+      }
+    }
+    if (!sent) console.log('  [send] no send button found — relying on Enter')
+  }
+  await sleep(2000)
 
   // Wait for "typing" indicator (up to 12s)
   const typingDeadline = Date.now() + 12000
@@ -821,7 +1188,9 @@ async function sendMessageAndGetReply(page, message, preChatEmail = '') {
     const t = await getBodyText()
 
     // Mid-conversation email prompt — detect if bot is asking for email and fill it
-    if (preChatEmail && !emailFilled) {
+    // Use provided email or default to audit@botaudit.app
+    const emailToUse = preChatEmail || 'audit@botaudit.app'
+    if (!emailFilled) {
       const emailSel = 'input[type="email"], input[name*="email" i], input[placeholder*="email" i]'
       const emailTextTriggers = ['enter your email', 'email to continue', 'provide your email', 'your email address', 'enter email']
       const bodyMentionsEmail = emailTextTriggers.some(trigger => t.toLowerCase().includes(trigger))
@@ -854,7 +1223,8 @@ async function sendMessageAndGetReply(page, message, preChatEmail = '') {
 
       // Trigger fill if input found, or if text clearly signals email is needed and text has stabilized
       if (emailVisible || (bodyMentionsEmail && stableAt && Date.now() - stableAt > 1000)) {
-        await fillPreChatEmail(page, preChatEmail, bodyLocator).catch(() => {})
+        console.log(`  [email] bot asked for email — filling ${emailToUse}`)
+        await fillPreChatEmail(page, emailToUse, bodyLocator).catch(() => {})
         emailFilled = true
         textLenAtEmailFill = t.length
         stableAt = null
@@ -987,10 +1357,13 @@ async function runTest(config, onProgress) {
         try {
           onProgress({ type: 'step', step: 'goto', url: targetUrl })
           await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
-          await sleep(2500)
+          await sleep(3000)
 
           // Dismiss cookie banners and promotional popups before interacting
           await dismissOverlays(page)
+          // Extra wait after overlay dismissal — some widgets (Qualified, etc.)
+          // only load after consent is given or overlays are cleared
+          await sleep(2000)
 
           // Debug: dump iframe names/IDs so we know what the page loaded
           const iframes = await page.locator('iframe').all()
@@ -1015,16 +1388,20 @@ async function runTest(config, onProgress) {
           response = await sendMessageAndGetReply(page, question, preChatEmail)
           onProgress({ type: 'step', step: 'got_response', response })
 
-          if (takeScreenshots && screenshotDir) {
+        } catch (err) {
+          error = err.message
+        }
+
+        // Always take a screenshot (even on error) — captures widget state for routing-only bots
+        if (takeScreenshots && screenshotDir) {
+          try {
             const filename = `q${String(i + 1).padStart(2, '0')}_run${run + 1}.png`
             screenshotPath = path.join('screenshots', filename)
             const fullPath = path.join(screenshotDir, filename)
             await page.screenshot({ path: fullPath, fullPage: false })
             const buf = fs.readFileSync(fullPath)
             screenshotBase64 = `data:image/png;base64,${buf.toString('base64')}`
-          }
-        } catch (err) {
-          error = err.message
+          } catch { /* page may be closed */ }
         }
 
         completed++

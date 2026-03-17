@@ -7,87 +7,52 @@
     "notes": "Utah-based, small CX team, Zoom Contact Center confirmed (shadow DOM widget)"
   },
   {
-    "company": "HireVue",
-    "supportUrl": "https://hirevuesupport.zendesk.com/hc/en-us",
-    "contactEmail": "support@hirevue.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Utah-based, HR tech SaaS, Zendesk confirmed"
-  },
-  {
     "company": "Pluralsight",
     "supportUrl": "https://www.pluralsight.com/contact-us",
     "contactEmail": "support@pluralsight.com",
-    "chatPlatform": "Drift",
-    "notes": "Utah-based, ed-tech SaaS, Drift confirmed"
+    "chatPlatform": "Qualified",
+    "notes": "Utah-based, ed-tech SaaS, Qualified messenger iframe confirmed"
   },
   {
     "company": "Squarespace",
     "supportUrl": "https://support.squarespace.com",
     "contactEmail": "support@squarespace.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk widget script directly confirmed in page source"
-  },
-  {
-    "company": "Teachable",
-    "supportUrl": "https://support.teachable.com/hc/en-us",
-    "contactEmail": "support@teachable.com",
-    "chatPlatform": "Intercom",
-    "notes": "Intercom widget script directly confirmed in page source"
-  },
-  {
-    "company": "Freshdesk",
-    "supportUrl": "https://support.freshdesk.com/en/support/home",
-    "contactEmail": "support@freshdesk.com",
-    "chatPlatform": "Freshchat",
-    "notes": "Freshchat script directly confirmed — ironic, a support tool with its own bot"
+    "chatPlatform": "Sunshine Conversations",
+    "notes": "Zendesk Sunshine Conversations widget in web-messenger-container iframe"
   },
   {
     "company": "Grammarly",
     "supportUrl": "https://support.grammarly.com/hc/en-us",
     "contactEmail": "support@grammarly.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk-hosted help center, chat widget confirmed via Grammarly support docs"
-  },
-  {
-    "company": "Hotjar",
-    "supportUrl": "https://help.hotjar.com/hc/en-us",
-    "contactEmail": "support@hotjar.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk case study confirmed — doubled self-service score"
+    "chatPlatform": "Forethought",
+    "notes": "Forethought AI widget in forethought-chat iframe"
   },
   {
     "company": "Calendly",
     "supportUrl": "https://help.calendly.com/hc/en-us",
     "contactEmail": "support@calendly.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk-hosted, confirmed in Zendesk customer story"
-  },
-  {
-    "company": "Zapier",
-    "supportUrl": "https://help.zapier.com/hc/en-us",
-    "contactEmail": "support@zapier.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk-hosted, verified Zendesk marketplace partner"
-  },
-  {
-    "company": "monday.com",
-    "supportUrl": "https://support.monday.com/hc/en-us",
-    "contactEmail": "support@monday.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk-hosted, monday.com publishes their own Zendesk integration docs"
+    "chatPlatform": "Ada",
+    "notes": "Ada chat widget in ada-chat-frame iframe"
   },
   {
     "company": "Typeform",
     "supportUrl": "https://help.typeform.com/hc/en-us",
     "contactEmail": "support@typeform.com",
     "chatPlatform": "Zendesk",
-    "notes": "Zendesk-hosted help center"
+    "notes": "Zendesk classic widget with iframe#launcher"
   },
   {
-    "company": "Unbounce",
-    "supportUrl": "https://documentation.unbounce.com/hc/en-us",
-    "contactEmail": "support@unbounce.com",
-    "chatPlatform": "Zendesk",
-    "notes": "Zendesk-hosted, has public Zendesk/Intercom integration repo on GitHub"
+    "company": "Angel",
+    "supportUrl": "https://angel.com/help",
+    "contactEmail": "",
+    "chatPlatform": "Unknown",
+    "notes": "Testing — platform TBD"
+  },
+  {
+    "company": "OpenAI",
+    "supportUrl": "https://help.openai.com/en",
+    "contactEmail": "",
+    "chatPlatform": "Unknown",
+    "notes": "Testing — platform TBD"
   }
 ]
