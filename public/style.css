@@ -456,13 +456,7 @@ body {
 
 @media (max-width: 860px) {
   .configure-layout { grid-template-columns: 1fr; }
-  .price-panel { order: -1; position: sticky; top: 60px; z-index: 50; }
-  .price-card { padding: 14px 16px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-  .price-card-title { font-size: 14px; margin-bottom: 10px; }
-  .price-line-items { gap: 6px; margin-bottom: 10px; }
-  .price-total { font-size: 15px !important; }
-  .price-included { display: none; }
-  .price-guarantee { font-size: 11px; margin-top: 10px; }
+  .price-panel { position: static; }
 }
 
 /* Form blocks */
