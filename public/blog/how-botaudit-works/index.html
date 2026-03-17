@@ -142,7 +142,7 @@
       </div>
     </div>
 
-    <p>Only one bot scored a B or higher. Most had significant gaps in how they handle billing questions, escalation requests, and edge cases. Let&rsquo;s walk through how we tested them.</p>
+    <p>Only one bot scored a B or higher. Most had significant gaps in how they handle billing questions, escalation requests, and edge cases. Here&rsquo;s what we found &mdash; and what you can do about it.</p>
 
     <h2>How it works: 4 steps from URL to report</h2>
 
@@ -207,9 +207,19 @@
       </div>
     </div>
 
-    <h2>Real examples from the audits</h2>
+    <h2>Company-by-company breakdown</h2>
 
-    <h3>Squarespace (C+) &mdash; Consistent but relies on escalation</h3>
+    <h3>Typeform (B-) &mdash; The best performer, but escalation is a gap</h3>
+
+    <p>Typeform&rsquo;s Zendesk bot scored the highest of the group at B- (82/100). It gave consistent, helpful answers on account and billing questions and had the fastest average response times. The one weak spot: when customers asked to speak with a human, the bot didn&rsquo;t offer a clear escalation path &mdash; it redirected to the help center instead.</p>
+
+    <p><strong>Recommendation:</strong> Add an explicit escalation path. When a customer asks for a human, the bot should confirm that a ticket is being created and set expectations on response time.</p>
+
+    <h3>Angel (C+) &mdash; Good billing answers, inconsistent on edge cases</h3>
+
+    <p>Angel&rsquo;s bot handled billing and account questions well, with consistent answers on 7 of 10 questions. It struggled on edge cases and nonsensical input, returning inconsistent error messages across runs. The quality scores were mid-range &mdash; responses addressed the question but rarely provided step-by-step guidance.</p>
+
+    <h3>Squarespace (C+) &mdash; Consistent but over-relies on escalation</h3>
 
     <p>Squarespace&rsquo;s bot scored well on consistency &mdash; 9 out of 10 questions got the same answer every time. But when it didn&rsquo;t know the answer, it defaulted to &ldquo;let&rsquo;s open a support case&rdquo; without trying to help first.</p>
 
@@ -281,7 +291,7 @@
 
     <h3>Calendly (F) &mdash; Bot often ignores the question entirely</h3>
 
-    <p>Calendly&rsquo;s Ada-powered bot frequently responded with its greeting (&ldquo;What can I help you with?&rdquo;) instead of actually answering the question. This suggests the message submission is unreliable or the bot isn&rsquo;t processing inputs correctly.</p>
+    <p>Calendly&rsquo;s Ada-powered bot frequently responded with its greeting (&ldquo;What can I help you with?&rdquo;) instead of actually answering the question. The underlying issue: Ada&rsquo;s chat input uses React controlled inputs that require simulated keystrokes to register properly &mdash; simple clipboard paste doesn&rsquo;t always trigger the submission handler. The bot itself is capable; the submission reliability isn&rsquo;t.</p>
 
     <div class="example-box">
       <div class="example-label">Question &mdash; Privacy</div>
@@ -289,6 +299,12 @@
       <span class="example-badge" style="background: #ef4444;">Failed &mdash; Question ignored</span>
       <div class="example-a bad">What can I help you with? What can I help you with?</div>
     </div>
+
+    <h3>Pluralsight (F) &mdash; Widget doesn&rsquo;t load for automated browsers</h3>
+
+    <p>Pluralsight&rsquo;s Qualified bot returned a score of 12/100 &mdash; the lowest in the group. The core issue: Qualified&rsquo;s routing widget applies anti-bot detection and doesn&rsquo;t render its chat interface in headless browser environments. In a visible browser it loads correctly, but because the widget doesn&rsquo;t appear in headless mode, 9 of 10 questions couldn&rsquo;t be tested. The 12/100 reflects the reliability penalty for bot inaccessibility.</p>
+
+    <p>This is actually a useful data point: if your chat widget uses bot-detection that blocks legitimate accessibility tools, it will also block some real users on slower connections or older browsers. Qualified&rsquo;s routing-only design (no free-text input) also means customers can&rsquo;t express problems outside the preset routing options.</p>
 
     <h2>Supported platforms</h2>
 
@@ -348,6 +364,13 @@
       <p>Run a free 3-question audit in under 2 minutes. No account required.</p>
       <a class="cta-btn" href="/">Get Started Free</a>
     </div>
+
+    <h2>Related reading</h2>
+    <ul>
+      <li><a href="/blog/support-bot-consistency/" style="color:#6366f1;">Why support bots give different answers to the same question</a> &mdash; a deep dive into what causes inconsistency and how to fix it.</li>
+      <li><a href="/blog/chatbot-audit-checklist/" style="color:#6366f1;">The 20-question checklist for auditing any AI support bot</a> &mdash; the exact questions we use internally, organized by category.</li>
+      <li><a href="/blog/is-your-zendesk-bot-working/" style="color:#6366f1;">Is your Zendesk bot actually working?</a> &mdash; how to systematically test Zendesk before your customers find the problems first.</li>
+    </ul>
 
   </div>
 </div>

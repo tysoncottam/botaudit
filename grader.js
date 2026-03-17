@@ -86,7 +86,7 @@ function generateRecommendations(results) {
   }
 
   // Check escalation handling
-  const escalationQs = results.filter(r => r.category === 'Escalation')
+  const escalationQs = results.filter(r => r.category.includes('Escalation'))
   if (escalationQs.length > 0) {
     const noEscalation = escalationQs.filter(r =>
       r.quality && !r.quality.scores.some(s => s.flags.includes('escalation_offered'))
@@ -142,7 +142,7 @@ function generateRecommendations(results) {
 /**
  * Generate executive summary text
  */
-function generateExecutiveSummary(results, summary, overallScore, grade, categoryGrades) {
+function generateExecutiveSummary(results, summary, categoryGrades) {
   const totalQ = results.length
   const goodCategories = Object.entries(categoryGrades)
     .filter(([, g]) => g.grade.startsWith('A') || g.grade.startsWith('B'))
@@ -152,7 +152,7 @@ function generateExecutiveSummary(results, summary, overallScore, grade, categor
     .map(([cat]) => cat)
 
   const parts = []
-  parts.push(`Your support bot was tested with ${totalQ} questions, each asked ${summary.totalRuns / totalQ} times to check for consistency.`)
+  parts.push(`Your support bot was tested with ${totalQ} questions, each asked ${Math.round(summary.totalRuns / totalQ)} times to check for consistency.`)
 
   if (goodCategories.length > 0 && weakCategories.length > 0) {
     parts.push(`It performs well on ${goodCategories.join(' and ')} questions but struggles with ${weakCategories.join(' and ')}.`)
@@ -238,7 +238,7 @@ function computeGrades(results, summary) {
   const recommendations = generateRecommendations(results)
 
   // ── Executive summary ─────────────────────────────────────────────────
-  const executiveSummary = generateExecutiveSummary(results, summary, overallScore, overallGrade, categoryGrades)
+  const executiveSummary = generateExecutiveSummary(results, summary, categoryGrades)
 
   return {
     overallScore,
