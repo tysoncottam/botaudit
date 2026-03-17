@@ -7,6 +7,7 @@ const { chromium } = require('playwright')
 const { pathToFileURL } = require('url')
 const path = require('path')
 const fs = require('fs')
+const { computeGrades } = require('./grader')
 
 // ── HTML builder ──────────────────────────────────────────────────────────────
 
@@ -15,9 +16,11 @@ function buildHtml({ config, results, summary, outputDir }) {
   const targetUrl = config.targetUrl || ''
   const hostname = (() => { try { return new URL(targetUrl).hostname } catch { return targetUrl } })()
   const totalRuns = summary.totalRuns || (results.length * config.runsPerQuestion)
-  const inconsistent = summary.inconsistentAnswers || 0
-  const errors = summary.errors ?? summary.totalErrors ?? 0
+  const errors = summary.errors ?? 0
   const avgSec = summary.avgResponseTimeMs ? (summary.avgResponseTimeMs / 1000).toFixed(1) : '—'
+
+  // Compute grades
+  const grades = computeGrades(results, summary)
 
   // Group results by category
   const byCategory = {}
@@ -27,30 +30,64 @@ function buildHtml({ config, results, summary, outputDir }) {
     byCategory[cat].push(r)
   }
 
-  // Build category rows
-  const categoryRows = Object.entries(byCategory).map(([cat, qs]) => {
-    const inconsistentInCat = qs.filter(q => {
-      const resps = q.runs.map(r => r.response || '')
-      return !resps.every(r => r === resps[0])
-    }).length
-    const errorInCat = qs.reduce((s, q) => s + q.runs.filter(r => r.error).length, 0)
-    const statusClass = errorInCat > 0 ? 'status-fail' : inconsistentInCat > 0 ? 'status-warn' : 'status-pass'
-    const statusText = errorInCat > 0 ? `${errorInCat} error${errorInCat !== 1 ? 's' : ''}` : inconsistentInCat > 0 ? `${inconsistentInCat} inconsistent` : 'Consistent'
+  // Build category bar chart rows
+  const categoryBars = Object.entries(grades.categoryGrades).map(([cat, g]) => `
+    <div class="bar-row">
+      <span class="bar-label">${esc(cat)}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width: ${g.score}%; background: ${g.color};">${g.grade} (${g.score})</div>
+      </div>
+    </div>
+  `).join('')
+
+  // Build recommendation cards
+  const recommendationCards = grades.recommendations.map(rec => {
+    const color = rec.priority === 'high' ? '#c8102e' : rec.priority === 'medium' ? '#e07b00' : '#0057b7'
     return `
-      <tr>
-        <td><strong>${esc(cat)}</strong></td>
-        <td>${qs.length}</td>
-        <td class="${statusClass}">${statusText}</td>
-      </tr>`
+    <div class="rec-card" style="border-left-color: ${color};">
+      <span class="rec-priority" style="color: ${color};">${rec.priority.toUpperCase()}</span>
+      <strong>${esc(rec.title)}</strong>
+      <p>${esc(rec.text)}</p>
+    </div>`
   }).join('')
+
+  // Similarity breakdown numbers
+  const identical = summary.identical || 0
+  const equivalent = summary.semanticallyEquivalent || 0
+  const variable = summary.partiallySimilar || 0
+  const contradictory = summary.contradictory || 0
 
   // Build question detail cards
   const questionCards = results.map((r, i) => {
-    const resps = r.runs.map(run => run.response || '')
-    const allSame = resps.every(resp => resp === resps[0])
     const hasError = r.runs.some(run => run.error)
-    const cardClass = hasError ? 'critical' : !allSame ? 'warning' : 'info'
-    const badgeText = hasError ? 'Error' : !allSame ? 'Inconsistent' : 'Consistent'
+
+    // Determine badge from similarity classification
+    let badgeText, cardClass
+    if (hasError) {
+      badgeText = 'Error'; cardClass = 'critical'
+    } else if (r.similarity) {
+      const cls = r.similarity.classification
+      if (cls === 'identical') { badgeText = 'Identical'; cardClass = 'info' }
+      else if (cls === 'semantically_equivalent') { badgeText = 'Equivalent'; cardClass = 'success' }
+      else if (cls === 'partially_similar') { badgeText = 'Variable'; cardClass = 'warning' }
+      else if (cls === 'contradictory') { badgeText = 'Contradictory'; cardClass = 'critical' }
+      else { badgeText = r.consistent ? 'Consistent' : 'Inconsistent'; cardClass = r.consistent ? 'info' : 'warning' }
+    } else {
+      badgeText = r.consistent ? 'Consistent' : 'Inconsistent'
+      cardClass = r.consistent ? 'info' : 'warning'
+    }
+
+    // Quality badge
+    const qualityBadge = r.quality && r.quality.average > 0
+      ? `<span class="quality-badge" style="background: ${r.quality.average >= 3.5 ? '#1a7f3c' : r.quality.average >= 2.5 ? '#e07b00' : '#c8102e'};">${r.quality.average}/5</span>`
+      : ''
+
+    // Quality flags
+    const flagChips = r.quality ? [...new Set(r.quality.scores.flatMap(s => s.flags))].map(f => {
+      const label = f.replace(/_/g, ' ')
+      const chipColor = f === 'deflection' ? '#c8102e' : f === 'escalation_offered' ? '#e07b00' : '#1a7f3c'
+      return `<span class="flag-chip" style="color: ${chipColor}; border-color: ${chipColor};">${label}</span>`
+    }).join('') : ''
 
     const runBlocks = r.runs.map((run, j) => {
       const text = run.error ? `ERROR: ${run.error}` : (run.response || '(no response captured)')
@@ -71,10 +108,12 @@ function buildHtml({ config, results, summary, outputDir }) {
       <div class="card-left">
         <div class="card-header">
           <span class="badge ${cardClass}">${badgeText}</span>
+          ${qualityBadge}
           <span class="card-cat">${esc(r.category || 'Uncategorized')}</span>
         </div>
         <div class="card-question">${esc(r.question)}</div>
         ${r.expectation ? `<div class="card-expectation">Expected: ${esc(r.expectation)}</div>` : ''}
+        ${flagChips ? `<div class="card-flags">${flagChips}</div>` : ''}
         <div class="card-runs">${runBlocks}</div>
       </div>
       ${screenshotBlock}
@@ -104,7 +143,11 @@ function buildHtml({ config, results, summary, outputDir }) {
     border-bottom: 3px solid #1a1a1a;
     padding-bottom: 20px;
     margin-bottom: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
   }
+  .cover-left { flex: 1; }
   .cover-label {
     font-size: 11px;
     font-weight: 700;
@@ -126,6 +169,29 @@ function buildHtml({ config, results, summary, outputDir }) {
   }
   .cover-meta strong { color: #1a1a1a; }
 
+  .grade-badge {
+    flex-shrink: 0;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    margin-left: 20px;
+  }
+  .grade-badge .grade-letter {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .grade-badge .grade-score {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+
   /* ── SECTION HEADINGS ── */
   h2 {
     font-size: 14px;
@@ -135,6 +201,34 @@ function buildHtml({ config, results, summary, outputDir }) {
     border-bottom: 2px solid #1a1a1a;
     padding-bottom: 5px;
     margin: 28px 0 14px;
+  }
+
+  /* ── EXECUTIVE SUMMARY ── */
+  .exec-summary {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 14px 0 20px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #333;
+  }
+
+  /* ── RECOMMENDATIONS ── */
+  .rec-card {
+    border-left: 4px solid #ccc;
+    padding: 10px 14px;
+    margin: 8px 0;
+    background: #fafafa;
+    border-radius: 0 6px 6px 0;
+    page-break-inside: avoid;
+  }
+  .rec-card p { margin-top: 4px; font-size: 12px; color: #444; }
+  .rec-priority {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin-right: 8px;
   }
 
   /* ── SCORECARD ── */
@@ -168,6 +262,22 @@ function buildHtml({ config, results, summary, outputDir }) {
   .score-box.amber { border-color: #e07b00; }  .score-box.amber .num { color: #e07b00; }
   .score-box.green { border-color: #1a7f3c; }  .score-box.green .num { color: #1a7f3c; }
   .score-box.dark  { border-color: #1a1a1a; }  .score-box.dark .num  { color: #1a1a1a; }
+
+  /* ── BAR CHART ── */
+  .bar-row { display: flex; align-items: center; margin: 6px 0; }
+  .bar-label { width: 110px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #eee; border-radius: 4px; height: 24px; }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    min-width: 60px;
+  }
 
   /* ── SUMMARY TABLE ── */
   table {
@@ -212,6 +322,7 @@ function buildHtml({ config, results, summary, outputDir }) {
   .question-card.critical { border-left-color: #c8102e; background: #fff5f5; }
   .question-card.warning  { border-left-color: #e07b00; background: #fffbf0; }
   .question-card.info     { border-left-color: #0057b7; background: #f0f5ff; }
+  .question-card.success  { border-left-color: #1a7f3c; background: #f0faf0; }
 
   .card-left { flex: 1; min-width: 0; }
 
@@ -234,6 +345,16 @@ function buildHtml({ config, results, summary, outputDir }) {
   .badge.critical { background: #c8102e; }
   .badge.warning  { background: #e07b00; }
   .badge.info     { background: #0057b7; }
+  .badge.success  { background: #1a7f3c; }
+
+  .quality-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #fff;
+    flex-shrink: 0;
+  }
 
   .card-cat {
     font-size: 11px;
@@ -252,8 +373,19 @@ function buildHtml({ config, results, summary, outputDir }) {
   .card-expectation {
     font-size: 11px;
     color: #888;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-style: italic;
+  }
+
+  .card-flags { margin-bottom: 6px; }
+  .flag-chip {
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 4px;
+    text-transform: capitalize;
   }
 
   .run-block {
@@ -285,6 +417,15 @@ function buildHtml({ config, results, summary, outputDir }) {
     display: block;
   }
 
+  /* ── METHODOLOGY ── */
+  .methodology {
+    font-size: 11px;
+    color: #666;
+    line-height: 1.7;
+    margin-top: 14px;
+  }
+  .methodology strong { color: #444; }
+
   /* ── FOOTER ── */
   .footer {
     margin-top: 40px;
@@ -299,35 +440,55 @@ function buildHtml({ config, results, summary, outputDir }) {
     h2 { page-break-after: avoid; }
     .question-card { page-break-inside: avoid; }
     .scorecard { page-break-inside: avoid; }
+    .rec-card { page-break-inside: avoid; }
   }
 </style>
 </head>
 <body>
 
+<!-- ── COVER ── -->
 <div class="cover">
-  <div class="cover-label">Automated Audit Report</div>
-  <h1>${esc(hostname)}</h1>
-  <div class="cover-meta">
-    <strong>Date:</strong> ${date} &nbsp;|&nbsp;
-    <strong>URL:</strong> ${esc(targetUrl)} &nbsp;|&nbsp;
-    <strong>Method:</strong> Playwright browser automation<br>
-    <strong>Questions:</strong> ${results.length} × ${config.runsPerQuestion} runs = ${totalRuns} total interactions
+  <div class="cover-left">
+    <div class="cover-label">BotAudit — Automated Audit Report</div>
+    <h1>${esc(hostname)}</h1>
+    <div class="cover-meta">
+      <strong>Date:</strong> ${date} &nbsp;|&nbsp;
+      <strong>URL:</strong> ${esc(targetUrl)}<br>
+      <strong>Method:</strong> Playwright browser automation &nbsp;|&nbsp;
+      <strong>Questions:</strong> ${results.length} × ${config.runsPerQuestion} runs = ${totalRuns} total interactions
+    </div>
+  </div>
+  <div class="grade-badge" style="background: ${grades.overallColor};">
+    <div class="grade-letter">${grades.overallGrade}</div>
+    <div class="grade-score">${grades.overallScore}/100</div>
   </div>
 </div>
 
+<!-- ── EXECUTIVE SUMMARY ── -->
+<h2>Executive Summary</h2>
+<div class="exec-summary">
+  ${esc(grades.executiveSummary)}
+</div>
+
+${grades.recommendations.length > 0 ? `
+<h2>Top Recommendations</h2>
+${recommendationCards}
+` : ''}
+
+<!-- ── SCORECARD ── -->
 <h2>At a Glance</h2>
 <div class="scorecard">
   <div class="score-box blue">
     <div class="num">${results.length}</div>
     <div class="label">Questions<br>Tested</div>
   </div>
-  <div class="score-box dark">
-    <div class="num">${totalRuns}</div>
-    <div class="label">Total<br>Runs</div>
+  <div class="score-box green">
+    <div class="num">${identical + equivalent}</div>
+    <div class="label">Consistent<br>Answers</div>
   </div>
-  <div class="score-box ${inconsistent > 0 ? 'amber' : 'green'}">
-    <div class="num">${inconsistent}</div>
-    <div class="label">Inconsistent<br>Answers</div>
+  <div class="score-box ${variable + contradictory > 0 ? 'amber' : 'green'}">
+    <div class="num">${variable + contradictory}</div>
+    <div class="label">Variable /<br>Contradictory</div>
   </div>
   <div class="score-box ${errors > 0 ? 'red' : 'green'}">
     <div class="num">${errors}</div>
@@ -339,25 +500,25 @@ function buildHtml({ config, results, summary, outputDir }) {
   </div>
 </div>
 
-<h2>Results by Category</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Category</th>
-      <th>Questions</th>
-      <th>Status</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${categoryRows}
-  </tbody>
-</table>
+<!-- ── CATEGORY BREAKDOWN ── -->
+<h2>Performance by Category</h2>
+${categoryBars}
 
+<!-- ── QUESTION DETAILS ── -->
 <h2>Question-by-Question Results</h2>
 ${questionCards}
 
+<!-- ── METHODOLOGY ── -->
+<h2>Methodology</h2>
+<div class="methodology">
+  <strong>How this audit works:</strong> Each question was sent to the live chat widget ${config.runsPerQuestion} time${config.runsPerQuestion > 1 ? 's' : ''} using a real browser (Playwright). Each run used a fresh browser session — no conversation history carried over — to test whether the bot gives consistent answers to the same question asked independently.<br><br>
+  <strong>Consistency scoring:</strong> Responses are compared using semantic similarity analysis (token-based cosine similarity), not exact string matching. This means responses that convey the same information with different wording are correctly classified as "Equivalent" rather than "Inconsistent."<br><br>
+  <strong>Quality scoring:</strong> Each response is evaluated on a 1-5 scale based on topic relevance, actionable guidance, empathy, and whether the bot provided specific steps or just deflected to a help page.<br><br>
+  <strong>Grading:</strong> The overall grade (A-F) is computed from consistency (40%), response quality (40%), and reliability (20%). Category grades use the same formula applied to questions within each category.
+</div>
+
 <div class="footer">
-  Support Bot Audit — ${esc(hostname)} &nbsp;|&nbsp; ${date}
+  BotAudit — ${esc(hostname)} &nbsp;|&nbsp; ${date} &nbsp;|&nbsp; botaudit.app
 </div>
 
 </body>

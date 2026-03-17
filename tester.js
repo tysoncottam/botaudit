@@ -10,6 +10,8 @@
 const { chromium } = require('playwright')
 const fs = require('fs')
 const path = require('path')
+const { classifyConsistency } = require('./similarity')
+const { scoreQuestion } = require('./quality-scorer')
 
 const RESPONSE_TIMEOUT_MS = 50000
 const STABILITY_WAIT_MS   = 3000
@@ -1433,9 +1435,15 @@ async function runTest(config, onProgress) {
       }
 
       const responses = runs.map((r) => r.response || '')
-      const consistent = responses.every((r) => r === responses[0])
 
-      const result = { category, question, expectation, runs, consistent }
+      // Semantic similarity classification (replaces binary === check)
+      const similarity = classifyConsistency(responses)
+      const consistent = similarity.classification === 'identical' || similarity.classification === 'semantically_equivalent'
+
+      // Quality scoring for each run's response
+      const quality = scoreQuestion(question, expectation, runs)
+
+      const result = { category, question, expectation, runs, consistent, similarity, quality }
       results.push(result)
 
       // Emit result data (strip base64 — screenshots already sent per run_complete)
@@ -1444,8 +1452,10 @@ async function runTest(config, onProgress) {
         type: 'question_complete',
         questionIndex: i,
         consistent,
+        similarity,
+        quality,
         totalQuestions: questions.length,
-        result: { category, question, expectation, runs: runsForEvent, consistent },
+        result: { category, question, expectation, runs: runsForEvent, consistent, similarity, quality },
       })
     }
   } finally {
@@ -1497,6 +1507,19 @@ async function runTest(config, onProgress) {
   const noResponses = results.reduce((s, r) => s + r.runs.filter(
     (run) => run.error || !run.response || run.response === '(no response captured)'
   ).length, 0)
+
+  // Similarity breakdown
+  const identical = results.filter(r => r.similarity && r.similarity.classification === 'identical').length
+  const equivalent = results.filter(r => r.similarity && r.similarity.classification === 'semantically_equivalent').length
+  const partiallySimilar = results.filter(r => r.similarity && r.similarity.classification === 'partially_similar').length
+  const contradictory = results.filter(r => r.similarity && r.similarity.classification === 'contradictory').length
+
+  // Quality averages
+  const qualityScores = results.filter(r => r.quality && r.quality.average > 0).map(r => r.quality.average)
+  const avgQualityScore = qualityScores.length > 0
+    ? Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length * 10) / 10
+    : 0
+
   const summary = {
     totalQuestions: results.length,
     totalRuns,
@@ -1507,6 +1530,15 @@ async function runTest(config, onProgress) {
     avgResponseTimeMs:
       results.reduce((s, r) => s + r.runs.reduce((s2, run) => s2 + run.responseTimeMs, 0), 0) /
       totalRuns,
+    // Semantic similarity breakdown
+    identical,
+    semanticallyEquivalent: equivalent,
+    partiallySimilar,
+    contradictory,
+    // Quality metrics
+    avgQualityScore,
+    deflections: results.filter(r => r.quality && r.quality.scores.some(s => s.rating === 'deflected')).length,
+    failures: results.filter(r => r.quality && r.quality.scores.some(s => s.rating === 'failed')).length,
     completedAt: new Date().toISOString(),
   }
   if (outputDir) fs.writeFileSync(path.join(outputDir, 'summary.json'), JSON.stringify(summary, null, 2))

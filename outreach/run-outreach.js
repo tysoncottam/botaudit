@@ -19,6 +19,7 @@ const fs   = require('fs')
 
 const { runTest }        = require('../tester')
 const { generateReport } = require('../generate-report')
+const { computeGrades }  = require('../grader')
 const targets            = require('./targets.json')
 
 const RUNS_PER_QUESTION = 3
@@ -43,24 +44,28 @@ function slug(company) {
   return company.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-')
 }
 
-function generateEmail(target, results, summary) {
+function generateEmail(target, results, summary, grades) {
+  const grade = grades ? grades.overallGrade : '?'
+  const score = grades ? grades.overallScore : 0
+
   const issues = []
-  if (summary.inconsistentAnswers > 0)
-    issues.push(`${summary.inconsistentAnswers} question${summary.inconsistentAnswers !== 1 ? 's' : ''} gave inconsistent answers across runs`)
+  if (summary.contradictory > 0)
+    issues.push(`${summary.contradictory} question${summary.contradictory !== 1 ? 's' : ''} gave contradictory answers across runs`)
+  if (summary.partiallySimilar > 0)
+    issues.push(`${summary.partiallySimilar} question${summary.partiallySimilar !== 1 ? 's' : ''} gave variable answers`)
+  if (summary.failures > 0)
+    issues.push(`the bot failed to understand ${summary.failures} question${summary.failures !== 1 ? 's' : ''}`)
   if (summary.errors > 0)
-    issues.push(`${summary.errors} question${summary.errors !== 1 ? 's' : ''} resulted in an error or no response`)
+    issues.push(`${summary.errors} run${summary.errors !== 1 ? 's' : ''} resulted in an error`)
   if (summary.avgResponseTimeMs > 8000)
-    issues.push(`average response time was ${(summary.avgResponseTimeMs / 1000).toFixed(1)}s (industry average is 3–5s)`)
+    issues.push(`average response time was ${(summary.avgResponseTimeMs / 1000).toFixed(1)}s (industry average is 3-5s)`)
 
+  const topRec = grades && grades.recommendations.length > 0 ? grades.recommendations[0] : null
   const noIssues = issues.length === 0
-  const inconsistentQ = results.find(r => !r.consistent && r.runs.some(run => !run.error))
-  const exampleSnippet = inconsistentQ
-    ? `\nFor example, when I asked "${inconsistentQ.question}", the bot gave a different answer on different runs — the kind of inconsistency that can quietly erode customer trust.\n`
-    : ''
 
-  const subjectLine = noIssues
-    ? `Quick audit of ${target.company}'s support bot — looks solid`
-    : `Quick audit of ${target.company}'s support bot — ${issues.length} thing${issues.length !== 1 ? 's' : ''} worth knowing`
+  const subjectLine = grade.startsWith('A') || grade.startsWith('B')
+    ? `Your support bot scored ${grade} — quick audit of ${target.company}`
+    : `Your support bot scored ${grade} — a few things worth knowing (${target.company})`
 
   return [
     `TO: ${target.contactEmail || '[FIND EMAIL — try hunter.io or apollo.io]'}`,
@@ -68,32 +73,30 @@ function generateEmail(target, results, summary) {
     ``,
     `Hi [NAME],`,
     ``,
-    `I built a tool called BotAudit that automatically tests AI support bots by asking real customer questions multiple times and checking whether the answers are consistent.`,
+    `I built a tool called BotAudit that automatically tests AI support bots — it asks real customer questions multiple times and grades the bot on consistency, response quality, and reliability.`,
     ``,
-    `I ran a quick 10-question audit on ${target.company}'s support bot and wanted to share what I found.`,
+    `I ran a 10-question audit on ${target.company}'s support bot. It scored a ${grade} (${score}/100).`,
     ``,
     noIssues
-      ? `Good news: the bot handled all 10 questions consistently with an average ${(summary.avgResponseTimeMs / 1000).toFixed(1)}s response time. Your team has done solid work on the bot configuration.`
-      : `Here's what came up:\n${issues.map(i => `• ${i}`).join('\n')}`,
-    exampleSnippet,
-    `I've attached the full PDF report — it includes every question, every response, and screenshots of the actual conversations.`,
+      ? `Good news: the bot handled all 10 questions well with an average ${(summary.avgResponseTimeMs / 1000).toFixed(1)}s response time. Your team has done solid work.`
+      : `Here's what came up:\n${issues.map(i => `  - ${i}`).join('\n')}`,
+    topRec ? `\nThe biggest opportunity: ${topRec.text.slice(0, 200)}` : '',
     ``,
-    `If this is useful and you'd like to run a more thorough audit (or retest after making changes), the full service is at https://botaudit.app — one-time payment, no subscription.`,
+    `I've attached the full PDF report — it includes the grade breakdown by category, every question and response, screenshots, and specific recommendations.`,
     ``,
-    `Happy to answer any questions.`,
+    `If this is useful, the full service is at https://botaudit.app — one-time payment, no subscription. Happy to answer any questions.`,
     ``,
     `[YOUR NAME]`,
     `https://botaudit.app`,
   ].join('\n')
 }
 
-function generateLinkedIn(target, summary) {
+function generateLinkedIn(target, summary, grades) {
   const searchUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(target.company + ' customer support')}&origin=GLOBAL_SEARCH_HEADER`
-  const finding = summary.inconsistentAnswers > 0
-    ? `gave inconsistent answers on ${summary.inconsistentAnswers} of 10 questions`
-    : summary.errors > 0
-      ? `errored or didn't respond on ${summary.errors} of 10 questions`
-      : `handled all 10 questions cleanly`
+  const grade = grades ? grades.overallGrade : '?'
+  const finding = grade.startsWith('A') || grade.startsWith('B')
+    ? `scored a ${grade} — solid, with a few areas to improve`
+    : `scored a ${grade} — there are some opportunities to improve`
 
   return [
     `LinkedIn Outreach — ${target.company}`,
@@ -182,19 +185,26 @@ async function auditCompany(target) {
     console.warn(`  ⚠ PDF generation failed: ${err.message}`)
   }
 
+  // Compute grades
+  const grades = computeGrades(results, summary)
+  fs.writeFileSync(path.join(outDir, 'grades.json'), JSON.stringify(grades, null, 2))
+  console.log(`  ✓ Grade: ${grades.overallGrade} (${grades.overallScore}/100)`)
+
   // Write email draft
-  const email = generateEmail(target, results, summary)
+  const email = generateEmail(target, results, summary, grades)
   fs.writeFileSync(path.join(outDir, 'email-draft.txt'), email)
   console.log(`  ✓ Email draft written`)
 
   // Write LinkedIn file
-  const linkedin = generateLinkedIn(target, summary)
+  const linkedin = generateLinkedIn(target, summary, grades)
   fs.writeFileSync(path.join(outDir, 'linkedin.txt'), linkedin)
   console.log(`  ✓ LinkedIn file written`)
 
   // Summary line
   const issues = [
-    summary.inconsistentAnswers > 0 && `${summary.inconsistentAnswers} inconsistent`,
+    summary.contradictory > 0       && `${summary.contradictory} contradictory`,
+    summary.partiallySimilar > 0    && `${summary.partiallySimilar} variable`,
+    summary.failures > 0            && `${summary.failures} failures`,
     summary.errors > 0              && `${summary.errors} errors`,
   ].filter(Boolean)
   console.log(`  → ${issues.length ? issues.join(', ') : 'No issues'} | ${(summary.avgResponseTimeMs / 1000).toFixed(1)}s avg`)
