@@ -145,8 +145,19 @@ async function auditCompany(target) {
       (event) => {
         if (event.type === 'question_start') {
           process.stdout.write(`\n  Q${event.index + 1} [${event.category}] `)
+        } else if (event.type === 'run_start') {
+          process.stdout.write(`[run ${event.run + 1}] `)
+        } else if (event.type === 'step') {
+          const labels = {
+            goto:            'loading page...',
+            opening_widget:  'finding widget...',
+            sending_message: 'sending msg...',
+            got_response:    'got response ',
+          }
+          const label = labels[event.step]
+          if (label) process.stdout.write(label)
         } else if (event.type === 'run_complete') {
-          process.stdout.write(event.error ? 'E' : '.')
+          process.stdout.write(event.error ? `ERR(${event.error.slice(0, 40)}) ` : 'OK  ')
         }
       }
     ))

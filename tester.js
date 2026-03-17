@@ -3,7 +3,8 @@
 // tester.js — Generalized Playwright-based support bot test engine
 //
 // Supports: Zendesk, Intercom, Drift, Crisp, HubSpot, Freshchat, Tidio,
-//           LiveChat, and generic iframe/inline chat widgets
+//           LiveChat, Tawk.to, Olark, Zoom Contact Center, Gorgias,
+//           and generic iframe/inline chat widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { chromium } = require('playwright')
@@ -16,12 +17,159 @@ const DELAY_BETWEEN_RUNS  = 2500
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// ── Dismiss Overlays (cookie banners, popups, modals) ───────────────────────
+
+async function dismissOverlays(page) {
+  // ── Phase 1: Cookie banners ──────────────────────────────────────────────
+  // Try specific IDs first (most reliable), then text-based selectors
+  const cookieSelectors = [
+    '#onetrust-accept-btn-handler',
+    '#onetrust-reject-all-handler',
+    '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+    '[data-testid="cookie-accept"]',
+    '[class*="cookie"] button',
+    '[id*="cookie"] button',
+    '[class*="consent"] button',
+    '[id*="consent"] button',
+    'button:has-text("Accept All")',
+    'button:has-text("Accept Cookies")',
+    'button:has-text("Allow All")',
+    'button:has-text("Reject All")',
+    'button:has-text("Got It")',
+    'button:has-text("I Agree")',
+    'a:has-text("Accept All")',
+  ]
+
+  for (const sel of cookieSelectors) {
+    try {
+      const el = page.locator(sel).first()
+      if ((await el.count()) > 0 && (await el.isVisible({ timeout: 500 }))) {
+        console.log(`  [overlay] dismissed cookie banner via: ${sel}`)
+        await el.click({ timeout: 2000 })
+        await sleep(500)
+        break
+      }
+    } catch { /* continue */ }
+  }
+
+  // ── Phase 2: Bounce Exchange / marketing popups (covers full page) ─────
+  // These use extreme z-index values and shroud/matte overlays
+  try {
+    const bxClose = await page.evaluate(() => {
+      // Bounce Exchange close buttons inside their popups
+      const closeBtn = document.querySelector('.bx-slab .bx-close, [class*="bx-close"], .bx-row .bx-button[data-click="close"]')
+      if (closeBtn) { closeBtn.click(); return true }
+      // Nuclear option: remove the shroud AND slab entirely
+      let removed = false
+      for (const sel of ['.bx-shroud', '.bx-slab', '.bx-matte']) {
+        document.querySelectorAll(sel).forEach(el => { el.remove(); removed = true })
+      }
+      return removed
+    })
+    if (bxClose) { console.log('  [overlay] removed Bounce Exchange popup/shroud'); await sleep(500) }
+  } catch { /* continue */ }
+
+  // ── Phase 2b: Nuclear — remove any non-chat fixed element with extreme z-index ──
+  // Some sites layer multiple overlays; this catches anything still blocking
+  try {
+    const nuked = await page.evaluate(() => {
+      const chatKeywords = /chat|intercom|zendesk|livesdk|drift|crisp|hubspot|freshchat|tidio|tawk|olark|gorgias/i
+      const removed = []
+      for (const el of document.querySelectorAll('*')) {
+        const style = window.getComputedStyle(el)
+        const z = parseInt(style.zIndex) || 0
+        if (z < 100000 || style.position !== 'fixed') continue
+        const id = el.id || ''
+        const cls = typeof el.className === 'string' ? el.className : ''
+        if (chatKeywords.test(id + ' ' + cls)) continue
+        const rect = el.getBoundingClientRect()
+        // Only remove large overlays (full-page or near-full-page)
+        if (rect.width > 400 && rect.height > 300) {
+          removed.push(`<${el.tagName.toLowerCase()}> id="${id}" class="${cls.slice(0, 40)}" z=${z}`)
+          el.remove()
+        }
+      }
+      return removed
+    })
+    if (nuked.length > 0) console.log(`  [overlay] nuked ${nuked.length} high-z overlay(s): ${nuked.join(', ')}`)
+  } catch { /* continue */ }
+
+  // ── Phase 3: Promotional modals / popups ───────────────────────────────
+  const modalCloseSelectors = [
+    '[aria-label="Close" i]',
+    '[aria-label="Dismiss" i]',
+    'button[class*="close" i]',
+    'button[class*="dismiss" i]',
+    '[class*="modal"] button[class*="close" i]',
+    '[class*="popup"] button[class*="close" i]',
+    '[class*="overlay"] button[class*="close" i]',
+    '[class*="modal"] [aria-label="Close" i]',
+    'a:has-text("Decline Offer")',
+    'a:has-text("No Thanks")',
+    'a:has-text("No thanks")',
+    'button:has-text("No Thanks")',
+    'button:has-text("No thanks")',
+    'button:has-text("Decline Offer")',
+    'button:has-text("Close")',
+  ]
+
+  for (const sel of modalCloseSelectors) {
+    try {
+      const el = page.locator(sel).first()
+      if ((await el.count()) > 0 && (await el.isVisible({ timeout: 500 }))) {
+        // Make sure this isn't a chat widget button
+        const parent = await el.evaluate(node => {
+          const p = node.closest('[id*="chat" i], [class*="chat" i], [id*="intercom" i], [class*="intercom" i], [id*="zendesk" i], [class*="livesdk" i]')
+          return p ? true : false
+        }).catch(() => false)
+        if (parent) { console.log(`  [overlay] skipped modal close (inside chat widget): ${sel}`); continue }
+
+        console.log(`  [overlay] dismissed modal via: ${sel}`)
+        await el.click({ timeout: 2000 })
+        await sleep(500)
+        break
+      }
+    } catch { /* continue */ }
+  }
+}
+
 // ── Chat Widget Detection & Opening ──────────────────────────────────────────
 
-async function openChatWidget(page) {
-  const strategies = [
+async function openChatWidget(page, preChatEmail) {
+  // ── Fast fingerprint: detect which platform is present ──────────────────
+  // This avoids the ~50s sequential timeout cascade of trying every platform
+  const detected = await page.evaluate(() => {
+    const html = document.documentElement.innerHTML
+    const scripts = [...document.querySelectorAll('script[src]')].map(s => s.src).join(' ')
+    const iframes = [...document.querySelectorAll('iframe')]
+    const iframeSrcs = iframes.map(f => (f.src || '') + (f.id || '') + (f.name || '') + (f.title || '')).join(' ')
+    const all = (html + ' ' + scripts + ' ' + iframeSrcs).toLowerCase()
+
+    // Check DOM presence of known markers
+    const markers = {
+      'zendesk':        !!document.querySelector('iframe#launcher') || all.includes('zdassets'),
+      'zendesk-msg':    !!document.querySelector('[data-testid*="launcher"][data-testid*="ZE"], div#launcher[role="button"]'),
+      'intercom':       all.includes('intercom') || !!document.querySelector('.intercom-launcher, iframe[name="intercom-launcher-frame"]'),
+      'drift':          all.includes('drift') || !!document.querySelector('#drift-widget'),
+      'crisp':          all.includes('crisp') || !!document.querySelector('[class*="crisp-client"]'),
+      'hubspot':        !!document.querySelector('#hubspot-messages-iframe-container'),
+      'freshchat':      all.includes('freshchat') || !!document.querySelector('#fc_frame'),
+      'tidio':          all.includes('tidio') || !!document.querySelector('#tidio-chat-iframe'),
+      'livechat':       all.includes('livechatinc') || !!document.querySelector('#chat-widget-container'),
+      'tawk':           all.includes('tawk') || !!document.querySelector('#tawkchat-minified-iframe'),
+      'olark':          all.includes('olark') || !!document.querySelector('#olark-wrapper'),
+      'zoom-cc':        all.includes('zoom.us') || !!document.querySelector('#zoom-contactcenter-chat-root'),
+      'gorgias':        all.includes('gorgias') || !!document.querySelector('[id*="gorgias"]'),
+    }
+    return Object.entries(markers).filter(([, v]) => v).map(([k]) => k)
+  })
+
+  console.log(`  [widget] detected platforms: ${detected.length ? detected.join(', ') : 'none — trying generic'}`)
+
+  // ── Build strategy list: detected platforms first, then generic ────────
+  const allStrategies = {
     // ── Widget already open / auto-embedded (e.g. OpenAI help) ──
-    async () => {
+    'already-open': async () => {
       const chatInputSel = 'textarea, [role="textbox"], input[type="text"][placeholder*="message" i], input[type="text"][placeholder*="type" i], input[type="text"][placeholder*="ask" i], input[type="text"][placeholder*="email" i]'
       const iframeEls = await page.locator('iframe').all()
       for (const el of iframeEls) {
@@ -36,7 +184,7 @@ async function openChatWidget(page) {
     },
 
     // ── Zendesk Chat / Support Widget (classic — iframe#launcher) ──
-    async () => {
+    'zendesk': async () => {
       await page.waitForSelector('iframe#launcher', { timeout: 8000 })
       const launcherEl = page.locator('iframe#launcher')
       const launcherFrame = await launcherEl.contentFrame()
@@ -50,7 +198,7 @@ async function openChatWidget(page) {
     },
 
     // ── Zendesk Messaging (newer widget — div launcher, zdassets CDN) ──
-    async () => {
+    'zendesk-msg': async () => {
       const sel = '[data-testid*="launcher"][data-testid*="ZE"], [class*="ze-snippet-button"], div#launcher[role="button"], div#launcher button'
       await page.waitForSelector(sel, { timeout: 5000 })
       await page.locator(sel).first().click()
@@ -59,16 +207,15 @@ async function openChatWidget(page) {
     },
 
     // ── Intercom ──
-    async () => {
+    'intercom': async () => {
+      // Try direct selector first, then iframe
       const sel = '.intercom-launcher, [class*="intercom-launcher"], [data-intercom-target="open"], .intercom-app button'
-      await page.waitForSelector(sel, { timeout: 4000 })
-      await page.locator(sel).first().click()
-      await sleep(2500)
-      return 'intercom'
-    },
-
-    // ── Intercom via iframe ──
-    async () => {
+      const directCount = await page.locator(sel).count()
+      if (directCount > 0) {
+        await page.locator(sel).first().click()
+        await sleep(2500)
+        return 'intercom'
+      }
       const frame = page.frameLocator('iframe[name="intercom-launcher-frame"]')
       await frame.locator('button').first().waitFor({ timeout: 3000 })
       await frame.locator('button').first().click()
@@ -77,7 +224,7 @@ async function openChatWidget(page) {
     },
 
     // ── Drift ──
-    async () => {
+    'drift': async () => {
       await page.waitForSelector('#drift-widget, iframe[title*="Drift"], [data-testid="drift-widget"]', { timeout: 4000 })
       await page.locator('#drift-widget button, iframe[title*="Drift"]').first().click()
       await sleep(2500)
@@ -85,7 +232,7 @@ async function openChatWidget(page) {
     },
 
     // ── Crisp ──
-    async () => {
+    'crisp': async () => {
       await page.waitForSelector('[class*="crisp-client"], #crisp-chatbox', { timeout: 4000 })
       await page.locator('[class*="crisp-client"] button, .cc-unoo, [class*="cc-button"]').first().click()
       await sleep(2500)
@@ -93,7 +240,7 @@ async function openChatWidget(page) {
     },
 
     // ── HubSpot Messages ──
-    async () => {
+    'hubspot': async () => {
       const containerSel = '#hubspot-messages-iframe-container'
       await page.waitForSelector(containerSel, { timeout: 4000 })
       const frame = page.frameLocator(`${containerSel} iframe`)
@@ -104,7 +251,7 @@ async function openChatWidget(page) {
     },
 
     // ── Freshchat / Freshdesk ──
-    async () => {
+    'freshchat': async () => {
       await page.waitForSelector('#fc_frame, .freshchat-button, [id*="freshchat"]', { timeout: 4000 })
       const frameSel = '#fc_frame'
       if (await page.locator(frameSel).count() > 0) {
@@ -118,7 +265,7 @@ async function openChatWidget(page) {
     },
 
     // ── Tidio ──
-    async () => {
+    'tidio': async () => {
       await page.waitForSelector('#tidio-chat-iframe, tidio-chat-iframe', { timeout: 4000 })
       const frame = page.frameLocator('#tidio-chat-iframe, tidio-chat-iframe')
       await frame.locator('button').first().click()
@@ -127,7 +274,7 @@ async function openChatWidget(page) {
     },
 
     // ── LiveChat ──
-    async () => {
+    'livechat': async () => {
       await page.waitForSelector('#chat-widget-container, iframe[title*="LiveChat"]', { timeout: 4000 })
       const el = page.locator('#chat-widget-container button, iframe[title*="LiveChat"]').first()
       await el.click()
@@ -136,7 +283,7 @@ async function openChatWidget(page) {
     },
 
     // ── Tawk.to ──
-    async () => {
+    'tawk': async () => {
       await page.waitForSelector('iframe[title*="chat widget"], #tawkchat-minified-iframe', { timeout: 4000 })
       const frame = page.frameLocator('iframe[title*="chat widget"], #tawkchat-minified-iframe')
       await frame.locator('button, [class*="widget"]').first().click()
@@ -145,55 +292,227 @@ async function openChatWidget(page) {
     },
 
     // ── Olark ──
-    async () => {
+    'olark': async () => {
       await page.waitForSelector('#olark-wrapper, #habla_topbar_div, iframe#habla_beta_nobrand_persistent_iframe', { timeout: 3000 })
       await page.locator('#olark-wrapper button, #habla_topbar_div').first().click()
       await sleep(2500)
       return 'olark'
     },
 
-    // ── Generic: aria-label / title / class patterns ──
-    async () => {
-      const candidates = [
-        '[aria-label*="chat" i]',
-        '[aria-label*="help" i]',
-        '[aria-label*="support" i]',
-        '[aria-label*="message" i]',
-        '[title*="chat" i]',
-        '[title*="support" i]',
-        'button[class*="chat" i]',
-        'button[class*="support" i]',
-        'div[class*="chat-button" i]',
-        'div[class*="chatbot" i]',
-        'div[class*="chat-widget" i]',
-        '[data-testid*="chat" i]',
-        '[data-widget*="chat" i]',
-      ]
-      for (const sel of candidates) {
+    // ── Zoom Contact Center (Shadow DOM widget) ──
+    'zoom-cc': async () => {
+      // Root container loads early but is hidden (0px) — use 'attached' not 'visible'
+      await page.waitForSelector('#zoom-contactcenter-chat-root', { state: 'attached', timeout: 4000 })
+      // Wait for the invitation button to render — it lives at page level, not in shadow DOM
+      // Must use Playwright .click() (real mouse event), not DOM .click() (synthetic event)
+      const launcherSel = '.livesdk__invitation, [aria-label="Open chat dialog"]'
+      const launcherDeadline = Date.now() + 8000
+      let clicked = false
+      while (Date.now() < launcherDeadline) {
         try {
-          const el = page.locator(sel).first()
-          if ((await el.count()) > 0 && (await el.isVisible())) {
-            await el.click()
-            await sleep(2500)
-            return `generic:${sel}`
+          const btn = page.locator(launcherSel).first()
+          if ((await btn.count()) > 0 && (await btn.isVisible())) {
+            await btn.click({ timeout: 2000 })
+            clicked = true
+            break
           }
-        } catch { /* continue */ }
+        } catch { /* not ready yet */ }
+        await sleep(500)
       }
-      throw new Error('no generic match')
-    },
-  ]
+      if (!clicked) throw new Error('Zoom CC launcher not clickable')
+      await sleep(3000)
 
-  for (let i = 0; i < strategies.length; i++) {
+      // Fill the pre-chat form (lives in shadow DOM) with test values
+      // Wait up to 5s for the form to render in the shadow DOM
+      const formDeadline = Date.now() + 5000
+      let formFound = false
+      while (Date.now() < formDeadline) {
+        formFound = await page.evaluate(() => {
+          for (const el of document.querySelectorAll('*')) {
+            if (!el.shadowRoot) continue
+            if (el.shadowRoot.querySelector('input[placeholder*="First Name" i], .livesdk__welcome-button')) return true
+          }
+          return false
+        })
+        if (formFound) break
+        await sleep(500)
+      }
+
+      if (formFound) {
+        console.log('  [zoom-cc] filling pre-chat form...')
+        await page.evaluate((email) => {
+          function fillShadowInput(placeholder, value) {
+            for (const el of document.querySelectorAll('*')) {
+              if (!el.shadowRoot) continue
+              const input = el.shadowRoot.querySelector(`input[placeholder*="${placeholder}" i]`)
+              if (input) {
+                const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+                setter.call(input, value)
+                input.dispatchEvent(new Event('input', { bubbles: true }))
+                input.dispatchEvent(new Event('change', { bubbles: true }))
+                return true
+              }
+            }
+            return false
+          }
+          fillShadowInput('First Name', 'Test')
+          fillShadowInput('Last Name', 'Audit')
+          fillShadowInput('Email', email || 'audit@botaudit.app')
+        }, preChatEmail || 'audit@botaudit.app')
+        await sleep(500)
+
+        // Select language dropdown (custom role="select" input)
+        await page.evaluate(() => {
+          for (const el of document.querySelectorAll('*')) {
+            if (!el.shadowRoot) continue
+            const input = el.shadowRoot.querySelector('input[placeholder*="Language" i], input[role="select"]')
+            if (input) { input.click(); return }
+          }
+        })
+        await sleep(800)
+        await page.evaluate(() => {
+          for (const el of document.querySelectorAll('*')) {
+            if (!el.shadowRoot) continue
+            const option = el.shadowRoot.querySelector('.zmsdk__select-card-item')
+            if (option) { option.click(); return }
+          }
+        })
+        await sleep(800)
+
+        // Click the submit button
+        await page.evaluate(() => {
+          for (const el of document.querySelectorAll('*')) {
+            if (!el.shadowRoot) continue
+            const btn = el.shadowRoot.querySelector('.livesdk__welcome-button')
+            if (btn && !btn.disabled) { btn.click(); return }
+          }
+        })
+        await sleep(4000)
+        console.log('  [zoom-cc] pre-chat form submitted')
+      } else {
+        console.log('  [zoom-cc] no pre-chat form detected, proceeding directly')
+      }
+
+      // Verify the chat textarea is actually visible (not 0x0 / collapsed)
+      // If the window collapsed after form submit, re-click the launcher to expand it
+      const inputVisible = await page.evaluate(() => {
+        for (const host of document.querySelectorAll('*')) {
+          if (!host.shadowRoot) continue
+          const ta = host.shadowRoot.querySelector('textarea[placeholder*="message" i], textarea')
+          if (ta) {
+            const rect = ta.getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0
+          }
+        }
+        return false
+      })
+
+      if (!inputVisible) {
+        console.log('  [zoom-cc] chat window collapsed after form submit — re-clicking launcher')
+        const launcherSel2 = '.livesdk__invitation, [aria-label="Open chat dialog"], .livesdk__Draggable'
+        const reopenDeadline = Date.now() + 6000
+        while (Date.now() < reopenDeadline) {
+          try {
+            const btn = page.locator(launcherSel2).first()
+            if ((await btn.count()) > 0 && (await btn.isVisible())) {
+              await btn.click({ timeout: 2000 })
+              console.log('  [zoom-cc] re-clicked launcher')
+              await sleep(3000)
+              break
+            }
+          } catch { /* not ready */ }
+          await sleep(500)
+        }
+
+        // Check again — the window might need the chat SDK to fully initialize
+        const inputNow = await page.evaluate(() => {
+          for (const host of document.querySelectorAll('*')) {
+            if (!host.shadowRoot) continue
+            const ta = host.shadowRoot.querySelector('textarea[placeholder*="message" i], textarea')
+            if (ta) {
+              const rect = ta.getBoundingClientRect()
+              return { w: rect.width, h: rect.height, ph: ta.placeholder }
+            }
+          }
+          return null
+        })
+        console.log(`  [zoom-cc] textarea after reopen: ${inputNow ? `${inputNow.w}x${inputNow.h} placeholder="${inputNow.ph}"` : 'not found'}`)
+      } else {
+        console.log('  [zoom-cc] chat textarea is visible')
+      }
+
+      return 'zoom-contactcenter'
+    },
+
+    // ── Gorgias ──
+    'gorgias': async () => {
+      const gorgiasBtn = '#gorgias-chat-container, [id*="gorgias"], [class*="gorgias"]'
+      await page.waitForSelector(gorgiasBtn, { timeout: 4000 })
+      const el = page.locator(gorgiasBtn).first()
+      const tagName = await el.evaluate(n => n.tagName.toLowerCase()).catch(() => '')
+      if (tagName === 'iframe') {
+        const frame = page.frameLocator(gorgiasBtn)
+        await frame.locator('button').first().click({ timeout: 3000 })
+      } else {
+        await el.click()
+      }
+      await sleep(2500)
+      return 'gorgias'
+    },
+  }
+
+  // ── Generic fallback (always tried last) ──────────────────────────────
+  async function genericStrategy() {
+    const candidates = [
+      '[aria-label*="chat" i]',
+      '[aria-label*="help" i]',
+      '[aria-label*="support" i]',
+      '[aria-label*="message" i]',
+      '[title*="chat" i]',
+      '[title*="support" i]',
+      'button[class*="chat" i]',
+      'button[class*="support" i]',
+      'div[class*="chat-button" i]',
+      'div[class*="chatbot" i]',
+      'div[class*="chat-widget" i]',
+      '[data-testid*="chat" i]',
+      '[data-widget*="chat" i]',
+    ]
+    for (const sel of candidates) {
+      try {
+        const el = page.locator(sel).first()
+        if ((await el.count()) > 0 && (await el.isVisible())) {
+          await el.click()
+          await sleep(2500)
+          return `generic:${sel}`
+        }
+      } catch { /* continue */ }
+    }
+    throw new Error('no generic match')
+  }
+
+  // ── Run: always try already-open first, then detected platforms, then generic ──
+  const tryOrder = ['already-open', ...detected]
+  for (const name of tryOrder) {
+    const fn = allStrategies[name]
+    if (!fn) continue
     try {
-      const result = await strategies[i]()
-      console.log(`  [widget] opened via strategy ${i} (${result})`)
+      const result = await fn()
+      console.log(`  [widget] opened via ${name} (${result})`)
       return result
     } catch { /* try next */ }
   }
 
+  // Try generic fallback
+  try {
+    const result = await genericStrategy()
+    console.log(`  [widget] opened via generic (${result})`)
+    return result
+  } catch { /* no match */ }
+
   throw new Error(
     'Could not find or open a chat widget on this page. ' +
-    'Supported platforms: Zendesk, Intercom, Drift, Crisp, HubSpot, Freshchat, Tidio, LiveChat, Tawk.to, Olark, and generic widgets. ' +
+    'Supported platforms: Zendesk, Intercom, Drift, Crisp, HubSpot, Freshchat, Tidio, LiveChat, Tawk.to, Olark, Zoom Contact Center, Gorgias, and generic widgets. ' +
     'Make sure the chat widget is visible on the page you entered.'
   )
 }
@@ -295,8 +614,14 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
   ].join(', ')
 
   const deadline = Date.now() + maxWaitMs
+  let loopCount = 0
 
   while (Date.now() < deadline) {
+    loopCount++
+    if (loopCount === 1 || loopCount % 5 === 0) {
+      console.log(`  [input] searching... (attempt ${loopCount}, ${Math.round((deadline - Date.now()) / 1000)}s left)`)
+    }
+
     // ── Check all iframes (most chat widgets render in iframes) ──────────────
     const iframeEls = await page.locator('iframe').all()
     for (const el of iframeEls) {
@@ -309,6 +634,7 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
 
         const inputCount = await frame.locator(chatInputSel).count()
         if (inputCount > 0) {
+          console.log(`  [input] found in iframe id="${id}" title="${title}" (${inputCount} inputs)`)
           return { frame, input: frame.locator(chatInputSel).last(), bodyLocator: frame.locator('body') }
         }
 
@@ -325,7 +651,7 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
       } catch { /* cross-origin or detached — skip */ }
     }
 
-    // ── Also check page-level chat containers (non-iframe widgets) ───────────
+    // ── Check page-level chat containers (non-iframe widgets) ──────────────
     const widgetContainers = [
       '[id*="chat"]:not(script)',
       '[class*="chat-widget"]',
@@ -338,6 +664,7 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
         if ((await container.count()) === 0) continue
         const input = container.locator(chatInputSel).first()
         if ((await input.count()) > 0 && (await input.isVisible())) {
+          console.log(`  [input] found in page-level container: ${sel}`)
           return { frame: null, input, bodyLocator: page.locator('body') }
         }
         // Auto-click routing buttons within the widget container
@@ -352,6 +679,72 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
       } catch { /* continue */ }
     }
 
+    // ── Check Shadow DOM roots (Zoom Contact Center, custom widgets) ─────
+    try {
+      const shadowInput = await page.evaluateHandle((inputSelectors) => {
+        // Skip pre-chat form fields (name/email) — look for message inputs only
+        const preChatPlaceholders = /first name|last name|email|phone|language/i
+        for (const host of document.querySelectorAll('*')) {
+          if (!host.shadowRoot) continue
+          const inputs = host.shadowRoot.querySelectorAll(inputSelectors)
+          for (const input of inputs) {
+            const ph = (input.placeholder || '').toLowerCase()
+            if (preChatPlaceholders.test(ph)) continue
+            const rect = input.getBoundingClientRect()
+            if (rect.width > 0 && rect.height > 0) return input
+          }
+          // Also check nested shadow roots one level deep
+          for (const inner of host.shadowRoot.querySelectorAll('*')) {
+            if (!inner.shadowRoot) continue
+            const nested = inner.shadowRoot.querySelectorAll(inputSelectors)
+            for (const input of nested) {
+              const ph = (input.placeholder || '').toLowerCase()
+              if (preChatPlaceholders.test(ph)) continue
+              const rect = input.getBoundingClientRect()
+              if (rect.width > 0 && rect.height > 0) return input
+            }
+          }
+        }
+        return null
+      }, chatInputSel)
+
+      const asElement = shadowInput.asElement()
+      if (asElement) {
+        console.log('  [input] found in shadow DOM')
+        return {
+          frame: null,
+          input: asElement,
+          bodyLocator: page.locator('body'),
+          shadowDom: true,
+        }
+      }
+    } catch { /* no shadow DOM inputs */ }
+
+    // Log what shadow DOM contains on first pass (helps debug)
+    if (loopCount === 1) {
+      try {
+        const shadowInfo = await page.evaluate((inputSel) => {
+          const results = []
+          for (const host of document.querySelectorAll('*')) {
+            if (!host.shadowRoot) continue
+            const tag = host.tagName.toLowerCase()
+            const id = host.id || ''
+            const cls = (typeof host.className === 'string' ? host.className : '').slice(0, 50)
+            const allInputs = host.shadowRoot.querySelectorAll(inputSel)
+            const inputInfo = [...allInputs].map(i => {
+              const rect = i.getBoundingClientRect()
+              return `${i.tagName.toLowerCase()}[placeholder="${i.placeholder || ''}"] ${Math.round(rect.width)}x${Math.round(rect.height)}`
+            })
+            if (inputInfo.length > 0) {
+              results.push(`<${tag}> id="${id}" class="${cls}": ${inputInfo.join(', ')}`)
+            }
+          }
+          return results
+        }, chatInputSel)
+        if (shadowInfo.length > 0) console.log(`  [input] shadow DOM inputs (pre-chat filtered): ${shadowInfo.join(' | ')}`)
+      } catch { /* ignore */ }
+    }
+
     await sleep(600)
   }
 
@@ -364,14 +757,45 @@ async function getChatInputContext(page, maxWaitMs = 12000) {
 // ── Send Message & Capture Response ──────────────────────────────────────────
 
 async function sendMessageAndGetReply(page, message, preChatEmail = '') {
-  const { input, bodyLocator } = await getChatInputContext(page)
+  const ctx = await getChatInputContext(page)
+  const { input, bodyLocator, shadowDom } = ctx
 
-  await input.waitFor({ state: 'attached', timeout: 5000 })
-  await input.click({ force: true })
-  await input.fill(message)
+  // Helper to read text — for shadow DOM widgets, read from shadow roots
+  async function getBodyText() {
+    if (shadowDom) {
+      return page.evaluate(() => {
+        for (const el of document.querySelectorAll('*')) {
+          if (!el.shadowRoot) continue
+          const container = el.shadowRoot.querySelector('[class*="chat-sdk-window"], [class*="message-list"], [class*="livesdk"]')
+          if (container) return container.innerText || ''
+        }
+        return document.body.innerText || ''
+      }).catch(() => '')
+    }
+    return bodyLocator.innerText().catch(() => '')
+  }
+
+  // For shadow DOM elements (ElementHandle), use different interaction methods
+  if (shadowDom) {
+    await input.click({ force: true }).catch(() => {})
+    await input.fill(message).catch(async () => {
+      // Fallback: use native setter + events
+      await page.evaluate(({ el, msg }) => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
+          || Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+        setter.call(el, msg)
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+      }, { el: input, msg: message })
+    })
+  } else {
+    await input.waitFor({ state: 'attached', timeout: 5000 })
+    await input.click({ force: true })
+    await input.fill(message)
+  }
 
   // Snapshot text before sending
-  const textBefore = await bodyLocator.innerText().catch(() => '')
+  const textBefore = await getBodyText()
 
   await input.press('Enter')
   await sleep(3000)
@@ -380,7 +804,7 @@ async function sendMessageAndGetReply(page, message, preChatEmail = '') {
   const typingDeadline = Date.now() + 12000
   while (Date.now() < typingDeadline) {
     await sleep(500)
-    const t = await bodyLocator.innerText().catch(() => '')
+    const t = await getBodyText()
     if (t.toLowerCase().includes('typing') || t.includes('...')) break
   }
   await sleep(1000)
@@ -394,7 +818,7 @@ async function sendMessageAndGetReply(page, message, preChatEmail = '') {
 
   while (Date.now() < deadline) {
     await sleep(800)
-    const t = await bodyLocator.innerText().catch(() => '')
+    const t = await getBodyText()
 
     // Mid-conversation email prompt — detect if bot is asking for email and fill it
     if (preChatEmail && !emailFilled) {
@@ -565,6 +989,9 @@ async function runTest(config, onProgress) {
           await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
           await sleep(2500)
 
+          // Dismiss cookie banners and promotional popups before interacting
+          await dismissOverlays(page)
+
           // Debug: dump iframe names/IDs so we know what the page loaded
           const iframes = await page.locator('iframe').all()
           for (const f of iframes) {
@@ -575,7 +1002,7 @@ async function runTest(config, onProgress) {
           }
 
           onProgress({ type: 'step', step: 'opening_widget' })
-          await openChatWidget(page)
+          await openChatWidget(page, preChatEmail)
           if (preChatEmail) {
             onProgress({ type: 'step', step: 'pre_chat_email' })
             await fillPreChatEmail(page, preChatEmail)
@@ -725,7 +1152,10 @@ async function checkBot({ targetUrl, preChatSteps = [], preChatEmail = '' }) {
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await sleep(4000)
 
-    const strategy = await openChatWidget(page)
+    // Dismiss cookie banners and promotional popups before interacting
+    await dismissOverlays(page)
+
+    const strategy = await openChatWidget(page, preChatEmail)
     await sleep(2000)
 
     // Specific named strategies (Zendesk, Intercom, etc.) are trusted as-is.
