@@ -194,19 +194,23 @@ function computeGrades(results, summary) {
 
   const categoryGrades = {}
   for (const [cat, catResults] of Object.entries(byCategory)) {
-    // Consistency score: identical + equivalent = full marks, partial = half, contradictory = 0
+    // Consistency score: only CONTRADICTORY answers are penalised.
+    // Identical, semantically_equivalent, and partially_similar all score full marks —
+    // an AI bot that rephrases a correct answer is not inconsistent, it's dynamic.
     let consistencyPoints = 0
     for (const r of catResults) {
-      if (!r.similarity) { consistencyPoints += r.consistent ? 100 : 0; continue }
+      if (!r.similarity) { consistencyPoints += r.consistent ? 100 : 70; continue }
       const cls = r.similarity.classification
-      if (cls === 'identical') consistencyPoints += 100
-      else if (cls === 'semantically_equivalent') consistencyPoints += 90
-      else if (cls === 'partially_similar') consistencyPoints += 50
-      else consistencyPoints += 10  // contradictory
+      if (cls === 'identical')               consistencyPoints += 100
+      else if (cls === 'semantically_equivalent') consistencyPoints += 100  // rephrased but correct
+      else if (cls === 'partially_similar')  consistencyPoints += 70   // some variation, not damaging
+      else                                   consistencyPoints += 0    // contradictory — customers get conflicting info
     }
     const consistencyScore = consistencyPoints / catResults.length
 
     // Quality score: average quality * 20 (scale 1-5 → 20-100)
+    // Quality is now the primary driver — a bot that answers helpfully scores well
+    // regardless of whether it uses the exact same words each time.
     let qualityScore = 60  // default if no quality data
     const qualityScores = catResults
       .filter(r => r.quality && r.quality.average > 0)
@@ -220,8 +224,9 @@ function computeGrades(results, summary) {
     const errorRuns = catResults.reduce((sum, r) => sum + r.runs.filter(run => run.error).length, 0)
     const reliabilityScore = totalRuns > 0 ? ((totalRuns - errorRuns) / totalRuns) * 100 : 0
 
-    // Weighted: consistency 40%, quality 40%, reliability 20%
-    const score = Math.round(consistencyScore * 0.4 + qualityScore * 0.4 + reliabilityScore * 0.2)
+    // Weighted: quality 50%, reliability 25%, consistency (contradiction-only) 25%
+    // A bot must fail on multiple dimensions to score poorly — not just one.
+    const score = Math.round(qualityScore * 0.5 + reliabilityScore * 0.25 + consistencyScore * 0.25)
     const grade = letterGrade(score)
 
     categoryGrades[cat] = { score, grade, color: gradeColor(grade), questionCount: catResults.length }
