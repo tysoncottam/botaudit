@@ -87,15 +87,24 @@ async function sendCompletionEmail(toEmail, configId, summary) {
 }
 
 // ── Email collection log ──────────────────────────────────────────────────────
+// Bounded retention: drop entries older than 30 days on every write so the file
+// doesn't accumulate PII forever.
 const emailLogPath = path.join(__dirname, 'email-log.json')
+const EMAIL_LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+
 function loadEmailLog() {
-  try { return JSON.parse(fs.readFileSync(emailLogPath, 'utf-8')) } catch { return [] }
+  try {
+    const log = JSON.parse(fs.readFileSync(emailLogPath, 'utf-8'))
+    const cutoff = Date.now() - EMAIL_LOG_RETENTION_MS
+    return Array.isArray(log) ? log.filter(e => new Date(e.date).getTime() > cutoff) : []
+  } catch { return [] }
 }
+
 function logEmail(email, targetUrl) {
   const entry = { email, targetUrl, date: new Date().toISOString() }
   console.log(`  [EMAIL COLLECTED] ${email} (${targetUrl})`)
   try {
-    const log = loadEmailLog()
+    const log = loadEmailLog() // already filtered to retention window
     if (!log.some(e => e.email === email)) {
       log.push(entry)
       fs.writeFileSync(emailLogPath, JSON.stringify(log, null, 2))
@@ -168,6 +177,20 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
 // Trust the upstream proxy (Cloudflare Tunnel / Railway / etc.) so req.ip reflects
 // the real visitor address instead of the loopback handoff
 app.set('trust proxy', true)
+
+// Don't advertise the framework
+app.disable('x-powered-by')
+
+// Defense-in-depth security headers. Cloudflare adds some by default, but a
+// complete set on the origin makes us robust to CF config changes too.
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'DENY')
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+  next()
+})
 
 Sentry.setupExpressErrorHandler(app)
 app.use(express.json({ limit: '5mb' }))
@@ -326,7 +349,8 @@ app.get('/api/emails', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     const { chromium } = require('playwright')
-    const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+    const sandboxOff = process.env.DISABLE_CHROMIUM_SANDBOX === '1'
+    const browser = await chromium.launch({ args: sandboxOff ? ['--no-sandbox', '--disable-setuid-sandbox'] : [] })
     await browser.close()
     res.json({ ok: true, chromium: 'working' })
   } catch (err) {

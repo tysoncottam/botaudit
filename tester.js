@@ -1330,7 +1330,14 @@ async function runTest(config, onProgress) {
   const total = questions.length * runsPerQuestion
   onProgress({ type: 'start', total, questions: questions.length, runs: runsPerQuestion })
 
-  const browser = await chromium.launch({ headless: process.env.HEADLESS !== 'false', args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+  // Chromium runs sandboxed by default — important since we're navigating to
+  // arbitrary customer-supplied URLs and a 0-day there shouldn't be allowed
+  // user-level RCE on the host. Set DISABLE_CHROMIUM_SANDBOX=1 only when running
+  // inside a container that strips the kernel features the sandbox needs.
+  const launchArgs = process.env.DISABLE_CHROMIUM_SANDBOX === '1'
+    ? ['--no-sandbox', '--disable-setuid-sandbox']
+    : []
+  const browser = await chromium.launch({ headless: process.env.HEADLESS !== 'false', args: launchArgs })
   const results = []
   let completed = 0
 
@@ -1552,7 +1559,10 @@ async function runTest(config, onProgress) {
 // ── Bot reachability pre-flight check ────────────────────────────────────────
 async function checkBot({ targetUrl, preChatSteps = [], preChatEmail = '' }) {
   const headless = process.env.HEADLESS !== 'false'
-  const browser = await chromium.launch({ headless, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+  const launchArgs = process.env.DISABLE_CHROMIUM_SANDBOX === '1'
+    ? ['--no-sandbox', '--disable-setuid-sandbox']
+    : []
+  const browser = await chromium.launch({ headless, args: launchArgs })
   // Create context/page inside the try so the finally cleanup still runs if
   // newContext / newPage throw (otherwise the browser would leak).
   let context = null
