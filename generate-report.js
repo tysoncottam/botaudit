@@ -12,42 +12,45 @@ const { computeGrades } = require('./grader')
 // ── HTML builder ──────────────────────────────────────────────────────────────
 
 function buildHtml({ config, results, summary, outputDir }) {
+  config = config || {}
+  results = Array.isArray(results) ? results : []
+  summary = summary || {}
+
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const targetUrl = config.targetUrl || ''
-  const hostname = (() => { try { return new URL(targetUrl).hostname } catch { return targetUrl } })()
-  const totalRuns = summary.totalRuns || (results.length * config.runsPerQuestion)
+  const hostname = (() => {
+    try { return new URL(targetUrl).hostname || targetUrl }
+    catch { return targetUrl || '(unknown target)' }
+  })()
+  const runsPerQuestion = Number(config.runsPerQuestion) > 0 ? Number(config.runsPerQuestion) : 1
+  const totalRuns = summary.totalRuns || (results.length * runsPerQuestion)
   const errors = summary.errors ?? 0
   const avgSec = summary.avgResponseTimeMs ? (summary.avgResponseTimeMs / 1000).toFixed(1) : '—'
 
   // Compute grades
   const grades = computeGrades(results, summary)
 
-  // Group results by category
-  const byCategory = {}
-  for (const r of results) {
-    const cat = r.category || 'Uncategorized'
-    if (!byCategory[cat]) byCategory[cat] = []
-    byCategory[cat].push(r)
-  }
-
   // Build category bar chart rows
-  const categoryBars = Object.entries(grades.categoryGrades).map(([cat, g]) => `
+  const categoryEntries = Object.entries(grades.categoryGrades || {})
+  const categoryBars = categoryEntries.map(([cat, g]) => `
     <div class="bar-row">
       <span class="bar-label">${esc(cat)}</span>
       <div class="bar-track">
-        <div class="bar-fill" style="width: ${g.score}%; background: ${g.color};">${g.grade} (${g.score})</div>
+        <div class="bar-fill" style="width: ${Math.max(0, Math.min(100, Number(g.score) || 0))}%; background: ${g.color};">${esc(g.grade)} (${esc(g.score)})</div>
       </div>
     </div>
   `).join('')
 
   // Build recommendation cards
-  const recommendationCards = grades.recommendations.map(rec => {
-    const color = rec.priority === 'high' ? '#c8102e' : rec.priority === 'medium' ? '#e07b00' : '#0057b7'
+  const recs = Array.isArray(grades.recommendations) ? grades.recommendations : []
+  const recommendationCards = recs.map(rec => {
+    const priority = (rec.priority || 'low').toLowerCase()
+    const color = priority === 'high' ? '#c8102e' : priority === 'medium' ? '#e07b00' : '#0057b7'
     return `
     <div class="rec-card" style="border-left-color: ${color};">
-      <span class="rec-priority" style="color: ${color};">${rec.priority.toUpperCase()}</span>
-      <strong>${esc(rec.title)}</strong>
-      <p>${esc(rec.text)}</p>
+      <span class="rec-priority" style="color: ${color};">${esc(priority.toUpperCase())}</span>
+      <strong>${esc(rec.title || '')}</strong>
+      <p>${esc(rec.text || '')}</p>
     </div>`
   }).join('')
 
@@ -58,8 +61,9 @@ function buildHtml({ config, results, summary, outputDir }) {
   const contradictory = summary.contradictory || 0
 
   // Build question detail cards
-  const questionCards = results.map((r, i) => {
-    const hasError = r.runs.some(run => run.error)
+  const questionCards = results.map((r) => {
+    const runs = Array.isArray(r.runs) ? r.runs : []
+    const hasError = runs.some(run => run && run.error)
 
     // Determine badge from similarity classification
     let badgeText, cardClass
@@ -78,18 +82,21 @@ function buildHtml({ config, results, summary, outputDir }) {
     }
 
     // Quality badge
-    const qualityBadge = r.quality && r.quality.average > 0
-      ? `<span class="quality-badge" style="background: ${r.quality.average >= 3.5 ? '#1a7f3c' : r.quality.average >= 2.5 ? '#e07b00' : '#c8102e'};">${r.quality.average}/5</span>`
+    const qAvg = r.quality && Number.isFinite(r.quality.average) ? r.quality.average : 0
+    const qualityBadge = qAvg > 0
+      ? `<span class="quality-badge" style="background: ${qAvg >= 3.5 ? '#1a7f3c' : qAvg >= 2.5 ? '#e07b00' : '#c8102e'};">${qAvg.toFixed(1)}/5</span>`
       : ''
 
     // Quality flags
-    const flagChips = r.quality ? [...new Set(r.quality.scores.flatMap(s => s.flags))].map(f => {
-      const label = f.replace(/_/g, ' ')
+    const qScores = r.quality && Array.isArray(r.quality.scores) ? r.quality.scores : []
+    const flagSet = [...new Set(qScores.flatMap(s => Array.isArray(s.flags) ? s.flags : []))]
+    const flagChips = flagSet.map(f => {
+      const label = String(f).replace(/_/g, ' ')
       const chipColor = f === 'deflection' ? '#c8102e' : f === 'escalation_offered' ? '#e07b00' : '#1a7f3c'
-      return `<span class="flag-chip" style="color: ${chipColor}; border-color: ${chipColor};">${label}</span>`
-    }).join('') : ''
+      return `<span class="flag-chip" style="color: ${chipColor}; border-color: ${chipColor};">${esc(label)}</span>`
+    }).join('')
 
-    const runBlocks = r.runs.map((run, j) => {
+    const runBlocks = runs.map((run, j) => {
       const text = run.error ? `ERROR: ${run.error}` : (run.response || '(no response captured)')
       const timeS = run.responseTimeMs ? (run.responseTimeMs / 1000).toFixed(1) + 's' : ''
       return `<div class="run-block"><span class="run-label">Run ${j + 1}${timeS ? ' · ' + timeS : ''}</span><div class="run-text">${esc(text)}</div></div>`
@@ -97,10 +104,13 @@ function buildHtml({ config, results, summary, outputDir }) {
 
     const screenshotBlock = (() => {
       if (!outputDir) return ''
-      const firstRunWithScreenshot = r.runs.find(run => run.screenshotPath && fs.existsSync(path.join(outputDir, run.screenshotPath)))
+      const firstRunWithScreenshot = runs.find(run =>
+        run && run.screenshotPath && fs.existsSync(path.join(outputDir, run.screenshotPath))
+      )
       if (!firstRunWithScreenshot) return ''
       const absPath = path.join(outputDir, firstRunWithScreenshot.screenshotPath)
-      return `<img class="card-screenshot" src="${pathToFileURL(absPath).href}">`
+      const altText = `Screenshot of bot response to: ${(r.question || '').slice(0, 80)}`
+      return `<img class="card-screenshot" src="${esc(pathToFileURL(absPath).href)}" alt="${esc(altText)}">`
     })()
 
     return `
@@ -455,7 +465,7 @@ function buildHtml({ config, results, summary, outputDir }) {
       <strong>Date:</strong> ${date} &nbsp;|&nbsp;
       <strong>URL:</strong> ${esc(targetUrl)}<br>
       <strong>Method:</strong> Playwright browser automation &nbsp;|&nbsp;
-      <strong>Questions:</strong> ${results.length} × ${config.runsPerQuestion} runs = ${totalRuns} total interactions
+      <strong>Questions:</strong> ${results.length} × ${runsPerQuestion} runs = ${totalRuns} total interactions
     </div>
   </div>
   <div class="grade-badge" style="background: ${grades.overallColor};">
@@ -470,7 +480,7 @@ function buildHtml({ config, results, summary, outputDir }) {
   ${esc(grades.executiveSummary)}
 </div>
 
-${grades.recommendations.length > 0 ? `
+${recs.length > 0 ? `
 <h2>Top Recommendations</h2>
 ${recommendationCards}
 ` : ''}
@@ -501,17 +511,17 @@ ${recommendationCards}
 </div>
 
 <!-- ── CATEGORY BREAKDOWN ── -->
-<h2>Performance by Category</h2>
-${categoryBars}
+${categoryEntries.length > 0 ? `<h2>Performance by Category</h2>
+${categoryBars}` : ''}
 
 <!-- ── QUESTION DETAILS ── -->
-<h2>Question-by-Question Results</h2>
-${questionCards}
+${results.length > 0 ? `<h2>Question-by-Question Results</h2>
+${questionCards}` : ''}
 
 <!-- ── METHODOLOGY ── -->
 <h2>Methodology</h2>
 <div class="methodology">
-  <strong>How this audit works:</strong> Each question was sent to the live chat widget ${config.runsPerQuestion} time${config.runsPerQuestion > 1 ? 's' : ''} using a real browser (Playwright). Each run used a fresh browser session — no conversation history carried over — to test whether the bot gives consistent answers to the same question asked independently.<br><br>
+  <strong>How this audit works:</strong> Each question was sent to the live chat widget ${runsPerQuestion} time${runsPerQuestion > 1 ? 's' : ''} using a real browser (Playwright). Each run used a fresh browser session — no conversation history carried over — to test whether the bot gives consistent answers to the same question asked independently.<br><br>
   <strong>Consistency scoring:</strong> Responses are compared using semantic similarity analysis (token-based cosine similarity), not exact string matching. This means responses that convey the same information with different wording are correctly classified as "Equivalent" rather than "Inconsistent."<br><br>
   <strong>Quality scoring:</strong> Each response is evaluated on a 1-5 scale based on topic relevance, actionable guidance, empathy, and whether the bot provided specific steps or just deflected to a help page.<br><br>
   <strong>Grading:</strong> The overall grade (A-F) is computed from consistency (40%), response quality (40%), and reliability (20%). Category grades use the same formula applied to questions within each category.
@@ -547,12 +557,16 @@ async function generateReport({ config, results, summary, outputDir }) {
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] })
   try {
     const page = await browser.newPage()
-    await page.goto(pathToFileURL(htmlPath).href, { waitUntil: 'networkidle' })
+    // Local file URL — `load` is sufficient and faster than `networkidle`
+    // (no remote requests are made; embedded screenshots are file:// URIs).
+    await page.goto(pathToFileURL(htmlPath).href, { waitUntil: 'load' })
+    await page.emulateMedia({ media: 'print' })
     await page.pdf({
       path: pdfPath,
       format: 'Letter',
       margin: { top: '0.3in', bottom: '0.3in', left: '0.3in', right: '0.3in' },
       printBackground: true,
+      preferCSSPageSize: false,
     })
   } finally {
     await browser.close()

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Is your Zendesk bot actually working? Here's how to find out — BotAudit</title>
+  <title>Is your Zendesk bot actually working? How to find out</title>
   <meta name="description" content="Most teams configure their Zendesk bot and assume it works. Here's a systematic way to test it before your customers find the problems first.">
   <link rel="canonical" href="https://botaudit.app/blog/is-your-zendesk-bot-working/">
   <meta name="robots" content="index, follow">
@@ -11,8 +11,12 @@
   <meta property="og:description" content="Most teams configure their Zendesk bot and assume it works. Here's how to test it systematically.">
   <meta property="og:url" content="https://botaudit.app/blog/is-your-zendesk-bot-working/">
   <meta property="og:type" content="article">
+  <meta property="og:site_name" content="BotAudit">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Is your Zendesk bot actually working?">
+  <meta name="twitter:description" content="Most teams configure their Zendesk bot and assume it works. Here's how to test it systematically.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Is your Zendesk bot actually working? Here's how to find out","description":"Most teams configure their Zendesk bot and assume it works. Here's a systematic way to test it before your customers find the problems first.","url":"https://botaudit.app/blog/is-your-zendesk-bot-working/","publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Is your Zendesk bot actually working? Here's how to find out","description":"Most teams configure their Zendesk bot and assume it works. Here's a systematic way to test it before your customers find the problems first.","url":"https://botaudit.app/blog/is-your-zendesk-bot-working/","mainEntityOfPage":"https://botaudit.app/blog/is-your-zendesk-bot-working/","datePublished":"2025-03-14","dateModified":"2025-03-14","author":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"},"publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
   <!-- Sentry (frontend error monitoring) -->
   <script src="https://browser.sentry-cdn.com/10.43.0/bundle.min.js" crossorigin="anonymous"></script>
   <script>
@@ -67,18 +71,18 @@
 
     <p>Six months later, a customer tells you on a review site that your support bot "just keeps repeating itself and never actually helps." Sound familiar?</p>
 
-    <p>The problem is that most teams test their bot once — manually, by themselves — and then never test it again. Your customers are running thousands of conversations a month. You've run maybe ten.</p>
+    <p>The problem is that most teams test their bot once, manually, by themselves, and then never test it again. Your customers are running thousands of conversations a month. You've run maybe ten.</p>
 
     <h2>What a Zendesk bot can silently fail at</h2>
 
     <p>Zendesk Messaging bots fail in ways that aren't obvious unless you're systematically testing them:</p>
 
     <ul>
-      <li><strong>Inconsistent answers</strong> — The same question asked twice gets different answers. This happens when multiple articles match a query and the bot picks differently each time.</li>
-      <li><strong>No response at all</strong> — The bot opens fine, you send a message, and… nothing. This is more common than you'd think, especially after knowledge base updates.</li>
-      <li><strong>Slow responses</strong> — The bot technically responds but takes 12 seconds. Users have already rage-quit.</li>
-      <li><strong>Wrong escalation path</strong> — When a customer says "I need a human," the bot should offer to connect them. Sometimes it doesn't.</li>
-      <li><strong>Graceless failures</strong> — What happens when a customer sends gibberish? A well-configured bot says "I didn't understand that." A poorly configured one throws a generic error or loops.</li>
+      <li><strong>Inconsistent answers.</strong> The same question asked twice gets different answers. This happens when multiple articles match a query and the bot picks differently each time.</li>
+      <li><strong>No response at all.</strong> The bot opens fine, you send a message, and nothing happens. This is more common than you'd think, especially after knowledge base updates.</li>
+      <li><strong>Slow responses.</strong> The bot technically responds but takes 12 seconds. Users have already rage-quit.</li>
+      <li><strong>Wrong escalation path.</strong> When a customer says "I need a human," the bot should offer to connect them. Sometimes it doesn't.</li>
+      <li><strong>Graceless failures.</strong> What happens when a customer sends gibberish? A well-configured bot says "I didn't understand that." A poorly configured one throws a generic error or loops.</li>
     </ul>
 
     <h2>How to test your Zendesk bot systematically</h2>
@@ -86,14 +90,14 @@
     <p>The only way to catch these problems reliably is to send the same questions multiple times and compare the answers. Here's a simple process you can run manually:</p>
 
     <ol>
-      <li>Write a list of 10–20 questions that real customers ask. Pull from your ticket history if you have it.</li>
-      <li>Open your support page in an incognito window (fresh session = no memory from prior conversations).</li>
+      <li>Write a list of 10 to 20 questions that real customers ask. Pull from your ticket history if you have it.</li>
+      <li>Open your support page in an incognito window (fresh session means no memory from prior conversations).</li>
       <li>Ask each question and record the response.</li>
       <li>Close the window, open a new incognito session, and ask each question again.</li>
       <li>Repeat three times and compare.</li>
     </ol>
 
-    <p>If you find inconsistencies, go back to your knowledge base and look for overlapping article coverage — two articles matching the same query is the most common cause.</p>
+    <p>If you find inconsistencies, go back to your knowledge base and look for overlapping article coverage. Two articles matching the same query is the most common cause.</p>
 
     <h2>What to look for in the responses</h2>
 
@@ -109,7 +113,7 @@
 
     <h2>Automate it so you don't have to do it manually</h2>
 
-    <p>Doing this manually every time you update your bot is tedious. That's why we built BotAudit — it automatically runs your questions against your live bot, repeats each one multiple times, and generates a full PDF report showing every response, consistency score, and screenshot.</p>
+    <p>Doing this manually every time you update your bot is tedious. That's why we built BotAudit. It automatically runs your questions against your live bot, repeats each one multiple times, and generates a full PDF report showing every response, consistency score, and screenshot.</p>
 
     <p>The free demo runs 3 questions at no cost. A full 20-question audit takes about 5 minutes and costs a few dollars.</p>
 
@@ -118,6 +122,13 @@
       <p>Free 3-question demo. No account required. Results in minutes.</p>
       <a class="cta-btn" href="/">Run a free audit →</a>
     </div>
+
+    <h2>Related reading</h2>
+    <ul>
+      <li><a href="/blog/support-bot-consistency/">Why support bots give different answers to the same question</a></li>
+      <li><a href="/blog/chatbot-audit-checklist/">The 20-question checklist for auditing any AI support bot</a></li>
+      <li><a href="/blog/how-botaudit-works/">How BotAudit works: real audits of 7 support bots</a></li>
+    </ul>
 
   </div>
 </div>

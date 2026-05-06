@@ -39,13 +39,6 @@ function gradeColor(grade) {
 function generateRecommendations(results) {
   const recs = []
 
-  // Group results by category
-  const byCategory = {}
-  for (const r of results) {
-    if (!byCategory[r.category]) byCategory[r.category] = []
-    byCategory[r.category].push(r)
-  }
-
   // Check for failed responses (bot didn't understand)
   const failedQuestions = results.filter(r =>
     r.quality && r.quality.scores.some(s => s.rating === 'failed')
@@ -152,7 +145,8 @@ function generateExecutiveSummary(results, summary, categoryGrades) {
     .map(([cat]) => cat)
 
   const parts = []
-  parts.push(`Your support bot was tested with ${totalQ} questions, each asked ${Math.round(summary.totalRuns / totalQ)} times to check for consistency.`)
+  const runsPerQ = totalQ > 0 ? Math.round(summary.totalRuns / totalQ) : 0
+  parts.push(`Your support bot was tested with ${totalQ} questions, each asked ${runsPerQ} times to check for consistency.`)
 
   if (goodCategories.length > 0 && weakCategories.length > 0) {
     parts.push(`It performs well on ${goodCategories.join(' and ')} questions but struggles with ${weakCategories.join(' and ')}.`)
@@ -198,15 +192,19 @@ function computeGrades(results, summary) {
     // Identical, semantically_equivalent, and partially_similar all score full marks —
     // an AI bot that rephrases a correct answer is not inconsistent, it's dynamic.
     let consistencyPoints = 0
+    let consistencyDenom = 0
     for (const r of catResults) {
-      if (!r.similarity) { consistencyPoints += r.consistent ? 100 : 70; continue }
+      if (!r.similarity) { consistencyPoints += r.consistent ? 100 : 70; consistencyDenom++; continue }
       const cls = r.similarity.classification
-      if (cls === 'identical')               consistencyPoints += 100
-      else if (cls === 'semantically_equivalent') consistencyPoints += 100  // rephrased but correct
-      else if (cls === 'partially_similar')  consistencyPoints += 70   // some variation, not damaging
-      else                                   consistencyPoints += 0    // contradictory — customers get conflicting info
+      if (cls === 'identical')                    { consistencyPoints += 100; consistencyDenom++ }
+      else if (cls === 'semantically_equivalent') { consistencyPoints += 100; consistencyDenom++ }  // rephrased but correct
+      else if (cls === 'partially_similar')       { consistencyPoints += 70;  consistencyDenom++ }  // some variation, not damaging
+      else if (cls === 'contradictory')           { consistencyPoints += 0;   consistencyDenom++ }  // customers get conflicting info
+      // single_response / no_response: skip — can't measure consistency, and reliability already
+      // penalises missing answers. Counting them would double-penalise or punish 1-run audits.
     }
-    const consistencyScore = consistencyPoints / catResults.length
+    // If every question in this category was un-measurable (e.g. all 1-run), default to full marks.
+    const consistencyScore = consistencyDenom > 0 ? consistencyPoints / consistencyDenom : 100
 
     // Quality score: average quality * 20 (scale 1-5 → 20-100)
     // Quality is now the primary driver — a bot that answers helpfully scores well
@@ -234,9 +232,9 @@ function computeGrades(results, summary) {
 
   // ── Overall grade ─────────────────────────────────────────────────────
   const catEntries = Object.values(categoryGrades)
-  const overallScore = Math.round(
-    catEntries.reduce((sum, c) => sum + c.score, 0) / catEntries.length
-  )
+  const overallScore = catEntries.length > 0
+    ? Math.round(catEntries.reduce((sum, c) => sum + c.score, 0) / catEntries.length)
+    : 0
   const overallGrade = letterGrade(overallScore)
 
   // ── Recommendations ───────────────────────────────────────────────────

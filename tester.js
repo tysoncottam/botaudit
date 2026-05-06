@@ -244,23 +244,18 @@ async function openChatWidget(page, preChatEmail) {
       // Wait for the Intercom frame to expand from 1x1 (tracker) to full messenger size
       const messengerSel = 'iframe[name="intercom-messenger-frame"], iframe[id="intercom-frame"], iframe[title*="Intercom" i], iframe[name*="intercom" i]'
       const expandDeadline = Date.now() + 8000
+      let intercomExpanded = false
       while (Date.now() < expandDeadline) {
         const iframes = await page.locator(messengerSel).all()
         for (const f of iframes) {
           const box = await f.boundingBox().catch(() => null)
           if (box && box.width > 100 && box.height > 100) {
             console.log(`  [intercom] messenger frame expanded: ${Math.round(box.width)}x${Math.round(box.height)}`)
+            intercomExpanded = true
             break
           }
         }
-        // Check if any frame is now large enough
-        const anyLarge = await Promise.any(
-          (await page.locator(messengerSel).all()).map(async f => {
-            const box = await f.boundingBox().catch(() => null)
-            return box && box.width > 100 && box.height > 100
-          })
-        ).catch(() => false)
-        if (anyLarge) break
+        if (intercomExpanded) break
         await sleep(500)
       }
       await sleep(1000)
@@ -757,7 +752,12 @@ async function fillPreChatEmail(page, email, bodyLocator = null) {
     try {
       const emailInput = context.locator(emailSel).first()
       if ((await emailInput.count()) === 0) return false
-      await emailInput.fill(email)
+      // type() simulates real keystrokes so React/Vue controlled inputs see the
+      // change events that fill() bypasses. Click + clear first so we don't append
+      // to a pre-populated field.
+      await emailInput.click()
+      await emailInput.fill('')
+      await emailInput.type(email, { delay: 15 })
       await sleep(500)
       const submitBtn = context.locator(submitSel).first()
       if ((await submitBtn.count()) > 0) {
@@ -1400,8 +1400,10 @@ async function runTest(config, onProgress) {
             const filename = `q${String(i + 1).padStart(2, '0')}_run${run + 1}.png`
             screenshotPath = path.join('screenshots', filename)
             const fullPath = path.join(screenshotDir, filename)
-            await page.screenshot({ path: fullPath, fullPage: false })
-            const buf = fs.readFileSync(fullPath)
+            // Capture once into a buffer, then both write to disk and base64-encode
+            // (avoids a redundant sync re-read of the file we just wrote).
+            const buf = await page.screenshot({ fullPage: false })
+            fs.writeFileSync(fullPath, buf)
             screenshotBase64 = `data:image/png;base64,${buf.toString('base64')}`
           } catch { /* page may be closed */ }
         }
@@ -1551,13 +1553,17 @@ async function runTest(config, onProgress) {
 async function checkBot({ targetUrl, preChatSteps = [], preChatEmail = '' }) {
   const headless = process.env.HEADLESS !== 'false'
   const browser = await chromium.launch({ headless, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 800 },
-  })
-  const page = await context.newPage()
-
+  // Create context/page inside the try so the finally cleanup still runs if
+  // newContext / newPage throw (otherwise the browser would leak).
+  let context = null
+  let page = null
   try {
+    context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      viewport: { width: 1280, height: 800 },
+    })
+    page = await context.newPage()
+
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await sleep(4000)
 
@@ -1616,7 +1622,7 @@ async function checkBot({ targetUrl, preChatSteps = [], preChatEmail = '' }) {
   } catch (err) {
     return { reachable: false, error: err.message }
   } finally {
-    await context.close().catch(() => {})
+    if (context) await context.close().catch(() => {})
     await browser.close().catch(() => {})
   }
 }

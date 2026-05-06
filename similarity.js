@@ -146,6 +146,9 @@ function classifyConsistency(responses) {
     return { classification: 'identical', score: 1.0, explanation: 'All responses are identical', pairScores: [] }
   }
 
+  // Tokenize once per response (avoid O(n²) re-tokenization in the pair loop)
+  const tokens = valid.map(v => tokenize(v))
+
   // Compute pairwise similarity
   const pairScores = []
   let totalCosine = 0
@@ -154,10 +157,8 @@ function classifyConsistency(responses) {
 
   for (let i = 0; i < valid.length; i++) {
     for (let j = i + 1; j < valid.length; j++) {
-      const tokA = tokenize(valid[i])
-      const tokB = tokenize(valid[j])
-      const cosine = cosineSimilarity(tokA, tokB)
-      const jaccard = jaccardSimilarity(tokA, tokB)
+      const cosine = cosineSimilarity(tokens[i], tokens[j])
+      const jaccard = jaccardSimilarity(tokens[i], tokens[j])
       pairScores.push({ i, j, cosine: Math.round(cosine * 100) / 100, jaccard: Math.round(jaccard * 100) / 100 })
       totalCosine += cosine
       totalJaccard += jaccard

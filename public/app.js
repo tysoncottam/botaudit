@@ -3,17 +3,27 @@
 // app.js — BotAudit frontend
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Pricing (must match server.js constants) ──────────────────────────────────
-const PRICE_PER_RUN_1X       = 0.75
-const PRICE_PER_RUN_3X       = 0.50
-const PRICE_PER_RUN_5X       = 0.40
-const PRICE_SCREENSHOT_PER_Q = 0.25
-const MINIMUM_CHARGE         = 10.00
+// ── Pricing ──────────────────────────────────────────────────────────────────
+// Authoritative values come from /api/config (set on the server). These
+// constants are only used as a display fallback if /api/config hasn't loaded
+// yet. The server always recalculates the actual charged amount.
+const PRICING_FALLBACK = {
+  perRun1x: 0.75,
+  perRun3x: 0.50,
+  perRun5x: 0.40,
+  screenshotPerQuestion: 0.25,
+  minimum: 10.00,
+}
+
+function pricing() {
+  return (appConfig && appConfig.pricing) || PRICING_FALLBACK
+}
 
 function getPricePerRun(runs) {
-  if (runs >= 5) return PRICE_PER_RUN_5X
-  if (runs >= 3) return PRICE_PER_RUN_3X
-  return PRICE_PER_RUN_1X
+  const p = pricing()
+  if (runs >= 5) return p.perRun5x
+  if (runs >= 3) return p.perRun3x
+  return p.perRun1x
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -314,7 +324,7 @@ function bindUpload() {
     e.preventDefault()
     const lines = [
       'How do I cancel my subscription?',
-      'I was charged twice — can I get a refund?',
+      'I was charged twice. Can I get a refund?',
       'I need to speak to a real person right now.',
       'How do I update my billing information?',
       'Can you delete my account and all my data?',
@@ -358,6 +368,8 @@ function switchUploadTab(tab) {
   activeUploadTab = tab
   $('tab-file').classList.toggle('active', tab === 'file')
   $('tab-manual').classList.toggle('active', tab === 'manual')
+  $('tab-file').setAttribute('aria-selected', tab === 'file')
+  $('tab-manual').setAttribute('aria-selected', tab === 'manual')
   $('panel-file').classList.toggle('hidden', tab !== 'file')
   $('panel-manual').classList.toggle('hidden', tab !== 'manual')
   customQuestions = tab === 'file' ? uploadedQuestions : [...manualQuestions]
@@ -456,7 +468,7 @@ function updatePrice() {
     } else if (botCheckState === 'checking') {
       btn.disabled = true; $('pay-btn-text').textContent = 'Checking your bot…'
     } else if (botCheckState === 'error') {
-      btn.disabled = true; $('pay-btn-text').textContent = 'No bot found — try a different URL'
+      btn.disabled = true; $('pay-btn-text').textContent = 'No bot found. Try a different URL.'
     } else {
       btn.disabled = false; $('pay-btn-text').textContent = 'Start Free Demo'
     }
@@ -464,22 +476,29 @@ function updatePrice() {
   }
 
   // Normal paid flow
+  const p = pricing()
+  const ssCost = shots ? numQ * p.screenshotPerQuestion : 0
+  const runCost = numQ * runs * pricePerRun
+  const subtotal = runCost + ssCost
+  const total = Math.max(subtotal, p.minimum)
+  const isMinimum = subtotal < p.minimum
+
   lineItems.innerHTML = `
     <div class="price-line">
       <span id="price-q-label">${numQ} question${numQ !== 1 ? 's' : ''} × ${runs} run${runs !== 1 ? 's' : ''}</span>
-      <span id="price-q-value">${fmt(numQ * runs * pricePerRun)}</span>
+      <span id="price-q-value">${fmt(runCost)}</span>
     </div>
-    <div class="price-line" id="screenshot-price-line" style="${shots ? '' : 'display:none'}">
+    <div class="price-line${shots ? '' : ' hidden'}" id="screenshot-price-line">
       <span>Screenshots (${numQ} question${numQ !== 1 ? 's' : ''})</span>
-      <span id="price-ss-value">${fmt(shots ? numQ * PRICE_SCREENSHOT_PER_Q : 0)}</span>
+      <span id="price-ss-value">${fmt(ssCost)}</span>
     </div>
     <div class="price-divider"></div>
     <div class="price-line price-total">
       <span>Total</span>
-      <span id="price-total">${fmt(Math.max(numQ * runs * pricePerRun + (shots ? numQ * PRICE_SCREENSHOT_PER_Q : 0), MINIMUM_CHARGE))}${(numQ * runs * pricePerRun + (shots ? numQ * PRICE_SCREENSHOT_PER_Q : 0)) < MINIMUM_CHARGE ? ' (min)' : ''}</span>
+      <span id="price-total">${fmt(total)}${isMinimum ? ' (min)' : ''}</span>
     </div>
   `
-  $('screenshot-price-label').textContent = `+${fmt(PRICE_SCREENSHOT_PER_Q)} per question`
+  $('screenshot-price-label').textContent = `+${fmt(p.screenshotPerQuestion)} per question`
 
   const ssItem = $('screenshot-included-item')
   if (ssItem) {
@@ -487,7 +506,6 @@ function updatePrice() {
     ssItem.querySelector('.included-icon').textContent = shots ? '✓' : '✕'
   }
 
-  const total = Math.max(numQ * runs * pricePerRun + (shots ? numQ * PRICE_SCREENSHOT_PER_Q : 0), MINIMUM_CHARGE)
   const btn = $('pay-btn')
   let btnText = ''
   if (!url || botCheckState === 'idle') {
@@ -497,13 +515,13 @@ function updatePrice() {
   } else if (botCheckState === 'checking') {
     btn.disabled = true; btnText = 'Checking your bot…'
   } else if (botCheckState === 'error') {
-    btn.disabled = true; btnText = 'No bot found — try a different URL'
+    btn.disabled = true; btnText = 'No bot found. Try a different URL.'
   } else if (source !== 'default' && customQuestions.length === 0) {
     btn.disabled = true; btnText = 'Add questions to continue'
   } else if (numQ === 0) {
     btn.disabled = true; btnText = 'No questions selected'
   } else {
-    btn.disabled = false; btnText = `Proceed to Payment — ${fmt(total)}`
+    btn.disabled = false; btnText = `Proceed to Payment · ${fmt(total)}`
   }
   $('pay-btn-text').textContent = btnText
 }
@@ -647,11 +665,11 @@ function showResumeBanner(stored, status, data) {
   urlEl.textContent = stored.targetUrl
 
   if (status === 'complete') {
-    label.textContent = '✓ Previous audit completed —'
+    label.textContent = '✓ Previous audit completed'
   } else if (status === 'running') {
-    label.textContent = '⏳ Test still in progress —'
+    label.textContent = '⏳ Test still in progress'
   } else {
-    label.textContent = 'Previous test found —'
+    label.textContent = 'Previous test found'
   }
 
   banner.classList.remove('hidden')
@@ -717,12 +735,12 @@ function startTest(configId, stripeSessionId) {
             renderResults(data.results, data.summary)
             setTimeout(() => scrollTo('results-section'), 400)
           } else {
-            addFeedItem('Could not recover results — the test may need to be re-run.', 'feed-error')
+            addFeedItem('Could not recover results. The test may need to be re-run.', 'feed-error')
           }
         })
         .catch(() => addFeedItem('Could not reach server. Please refresh and try again.', 'feed-error'))
     } else {
-      addFeedItem('Connection lost — reconnecting...', 'feed-error')
+      addFeedItem('Connection lost. Reconnecting...', 'feed-error')
     }
   }
 }
@@ -803,7 +821,7 @@ function updatePartialDownloadBar(completedQ, totalQ) {
   const bar = $('partial-download-bar')
   bar.classList.remove('hidden')
   $('partial-download-label').textContent =
-    `${completedQ} of ${totalQ} questions completed — still testing ${totalQ - completedQ} more`
+    `${completedQ} of ${totalQ} questions completed. Still testing ${totalQ - completedQ} more.`
 }
 
 function handlePartialDownload() {
@@ -827,7 +845,7 @@ function handleSSEEvent(event) {
       break
 
     case 'attached':
-      addFeedItem(event.message || 'Reconnected — test in progress', 'feed-waiting')
+      addFeedItem(event.message || 'Reconnected. Test in progress.', 'feed-waiting')
       break
 
     case 'question_start': {
@@ -855,7 +873,7 @@ function handleSSEEvent(event) {
       if (event.error) {
         updateFeedItem(
           itemId,
-          `  → Run ${event.run + 1}: <strong>ERROR</strong> — ${escHtml(event.error)} <span class="time-badge">${timeStr}</span>`,
+          `  → Run ${event.run + 1}: <strong>ERROR</strong> · ${escHtml(event.error)} <span class="time-badge">${timeStr}</span>`,
           'error'
         )
       } else {
@@ -864,7 +882,7 @@ function handleSSEEvent(event) {
           `  → Run ${event.run + 1}: <span class="time-badge">${timeStr}</span>` +
           `<div class="response-text">${escHtml(truncated)}${(event.response || '').length > 120 ? '...' : ''}</div>`
         if (event.screenshotBase64) {
-          html += `<img class="feed-thumb" src="${event.screenshotBase64}" alt="screenshot" onclick="showLightbox('${event.screenshotBase64}')" loading="lazy">`
+          html += `<img class="feed-thumb" src="${event.screenshotBase64}" alt="Screenshot from run ${event.run + 1}" onclick="showLightbox(this.src)" loading="lazy">`
         }
         updateFeedItem(itemId, html, 'success')
       }
@@ -884,8 +902,8 @@ function handleSSEEvent(event) {
       const qItem = feedItems.find(i => i.id === `feed-q-${event.questionIndex}`)
       if (qItem) {
         const icon = event.consistent ? '✓' : '⚠️'
-        const tag  = event.consistent ? '' : ' <span style="color:#f59e0b;font-size:11px;">INCONSISTENT</span>'
-        qItem.html = `<span style="margin-right:6px">${icon}</span>` + qItem.html + tag
+        const tag  = event.consistent ? '' : ' <span class="feed-q-flag">INCONSISTENT</span>'
+        qItem.html = `<span class="feed-q-icon">${icon}</span>` + qItem.html + tag
         renderFeedPage()
       }
       // Update partial download bar
@@ -895,23 +913,23 @@ function handleSSEEvent(event) {
 
     case 'complete':
       sseSource && sseSource.close()
-      // Session is now safely on disk — update localStorage so resume banner shows "completed"
+      // Session is now safely on disk. Update localStorage so the resume banner shows "completed".
       saveSession(activeConfigId, $('target-url').value.trim() || '')
       // Stop spinner
       const spinner = $('test-spinner')
-      if (spinner) spinner.style.display = 'none'
+      if (spinner) spinner.classList.add('hidden')
       $('progress-eta').textContent = 'Complete!'
       $('partial-download-bar').classList.add('hidden')
 
       renderResults(event.results, event.summary)
 
       if (event.summary?.refundEligible) {
-        addFeedItem('⚠ Most questions got no response — the bot may not have been reached. See the notice below.', 'feed-error')
+        addFeedItem('⚠ Most questions got no response. The bot may not have been reached. See the notice below.', 'feed-error')
         $('refund-notice').classList.remove('hidden')
         // Show refund contact only for paid tests
         $('refund-notice-paid-msg').classList.toggle('hidden', isDemoMode)
         if (isDemoMode) {
-          $('refund-notice-msg').textContent = 'This usually means the page doesn\'t have a chat widget. Since this was a free test, feel free to try again with a different URL — no charge.'
+          $('refund-notice-msg').textContent = 'This usually means the page doesn\'t have a chat widget. Since this was a free test, feel free to try again with a different URL. No charge.'
         }
       } else {
         addFeedItem('✓ Test complete! See results below.', 'feed-complete-msg')
@@ -926,7 +944,7 @@ function handleSSEEvent(event) {
     case 'interrupted': {
       sseSource && sseSource.close()
       const spI = $('test-spinner')
-      if (spI) spI.style.display = 'none'
+      if (spI) spI.classList.add('hidden')
       addFeedItem('⚠ ' + (event.message || 'Test was interrupted by a server restart.'), 'feed-error')
       if (event.partial && event.partial.length > 0) {
         addFeedItem(`Partial results recovered: ${event.partial.length} question(s) completed before restart.`, 'feed-waiting')
@@ -942,7 +960,7 @@ function handleSSEEvent(event) {
     case 'fatal_error':
       sseSource && sseSource.close()
       const sp = $('test-spinner')
-      if (sp) sp.style.display = 'none'
+      if (sp) sp.classList.add('hidden')
       addFeedItem('Fatal error: ' + (event.error || 'Unknown error'), 'feed-error')
       showToast('Test failed: ' + event.error, true)
       break
@@ -1039,21 +1057,17 @@ function renderResults(results, summary) {
     $('results-timestamp').textContent = 'Completed at ' + new Date(summary.completedAt).toLocaleString()
 
     if (summary.inconsistentAnswers === 0) {
-      $('sum-inconsistent-card').className  = 'summary-card'
-      $('sum-inconsistent-card').style.borderColor = '#86efac'
-      $('sum-inconsistent-card').style.background  = '#f0fdf4'
+      $('sum-inconsistent-card').className = 'summary-card summary-card-good'
     }
     if (summary.errors === 0) {
-      $('sum-errors-card').className  = 'summary-card'
-      $('sum-errors-card').style.borderColor = '#86efac'
-      $('sum-errors-card').style.background  = '#f0fdf4'
+      $('sum-errors-card').className = 'summary-card summary-card-good'
     }
   }
 
   const list = $('results-list')
   list.innerHTML = ''
   if (!results || results.length === 0) {
-    list.innerHTML = '<p style="text-align:center;color:#64748b">No results to display.</p>'
+    list.innerHTML = '<p class="results-empty">No results to display.</p>'
     return
   }
 
@@ -1067,7 +1081,7 @@ function renderResults(results, summary) {
     const card = document.createElement('div')
     card.className = `result-card ${cardClass}`
     card.innerHTML = `
-      <div class="result-card-header" onclick="toggleCard(this)">
+      <div class="result-card-header" role="button" tabindex="0" aria-expanded="false" onclick="toggleCard(this)" onkeydown="resultCardKey(event, this)">
         <div class="result-num">${i + 1}</div>
         <div class="result-question-wrap">
           <div class="result-category">${escHtml(result.category)}</div>
@@ -1075,7 +1089,7 @@ function renderResults(results, summary) {
         </div>
         <div class="result-status">
           <span class="status-pill ${statusText}">${statusLabel}</span>
-          <span class="result-chevron">›</span>
+          <span class="result-chevron" aria-hidden="true">›</span>
         </div>
       </div>
       <div class="result-card-body">
@@ -1103,19 +1117,28 @@ function renderResults(results, summary) {
 function screenshotHtml(run, r) {
   if (run.screenshotBase64) {
     // Inline base64 (from SSE stream, in memory)
-    return `<div class="run-screenshot"><img src="${run.screenshotBase64}" alt="Screenshot run ${r + 1}" onclick="showLightbox('${run.screenshotBase64}')" loading="lazy"></div>`
+    return `<div class="run-screenshot"><img src="${run.screenshotBase64}" alt="Screenshot from run ${r + 1}" onclick="showLightbox(this.src)" loading="lazy"></div>`
   }
   if (run.screenshotPath) {
     // Load from server (e.g. after page refresh)
     const filename = run.screenshotPath.split('/').pop()
     const src = `/api/screenshots/${activeConfigId}/${encodeURIComponent(filename)}`
-    return `<div class="run-screenshot"><img src="${src}" alt="Screenshot run ${r + 1}" onclick="showLightbox(this.src)" loading="lazy"></div>`
+    return `<div class="run-screenshot"><img src="${src}" alt="Screenshot from run ${r + 1}" onclick="showLightbox(this.src)" loading="lazy"></div>`
   }
   return ''
 }
 
 function toggleCard(header) {
-  header.closest('.result-card').classList.toggle('open')
+  const card = header.closest('.result-card')
+  const open = card.classList.toggle('open')
+  header.setAttribute('aria-expanded', open ? 'true' : 'false')
+}
+
+function resultCardKey(e, header) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    toggleCard(header)
+  }
 }
 
 // ── Downloads ─────────────────────────────────────────────────────────────────
@@ -1125,14 +1148,51 @@ function handleDownload() {
 }
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
+let lightboxLastFocus = null
+
 function showLightbox(src) {
   const box = document.createElement('div')
   box.className = 'lightbox'
-  box.onclick   = () => box.remove()
+  box.setAttribute('role', 'dialog')
+  box.setAttribute('aria-modal', 'true')
+  box.setAttribute('aria-label', 'Screenshot preview')
+  box.tabIndex = -1
+  box.onclick   = () => closeLightbox(box)
+
   const img = document.createElement('img')
   img.src = src
+  img.alt = 'Screenshot preview'
+
+  const close = document.createElement('button')
+  close.className = 'lightbox-close'
+  close.type = 'button'
+  close.setAttribute('aria-label', 'Close screenshot')
+  close.textContent = '✕'
+  close.onclick = (e) => { e.stopPropagation(); closeLightbox(box) }
+
   box.appendChild(img)
+  box.appendChild(close)
   document.body.appendChild(box)
+
+  lightboxLastFocus = document.activeElement
+  box.focus()
+  document.addEventListener('keydown', lightboxKeyHandler)
+}
+
+function closeLightbox(box) {
+  document.removeEventListener('keydown', lightboxKeyHandler)
+  box.remove()
+  if (lightboxLastFocus && typeof lightboxLastFocus.focus === 'function') {
+    lightboxLastFocus.focus()
+  }
+  lightboxLastFocus = null
+}
+
+function lightboxKeyHandler(e) {
+  if (e.key === 'Escape') {
+    const box = document.querySelector('.lightbox')
+    if (box) closeLightbox(box)
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1160,6 +1220,8 @@ function showToast(msg, isError) {
   const toast = $('toast')
   $('toast-msg').textContent = msg
   toast.className = 'toast' + (isError ? ' error' : '')
+  toast.setAttribute('aria-live', isError ? 'assertive' : 'polite')
+  toast.setAttribute('role', isError ? 'alert' : 'status')
   toast.classList.remove('hidden')
   setTimeout(hideToast, 6000)
 }
@@ -1168,6 +1230,10 @@ function hideToast() { $('toast').classList.add('hidden') }
 
 // Expose globals for inline onclick handlers
 window.toggleCard          = toggleCard
+window.resultCardKey       = resultCardKey
 window.showLightbox        = showLightbox
 window.hideToast           = hideToast
 window.removeManualQuestion = removeManualQuestion
+window.removePreChatStep   = removePreChatStep
+window.retryWithNewUrl     = retryWithNewUrl
+window.copyShareLink       = copyShareLink

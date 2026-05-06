@@ -1,45 +1,56 @@
 # BotAudit
 
-> Automated quality testing for AI support bots — find out if your chatbot is actually helping customers or quietly failing them.
+> Automated quality testing for AI support bots. Find out if your chatbot is actually helping customers or quietly failing them.
 
-BotAudit is a web-based tool that automatically tests Zendesk Messaging chat widgets (and similar support bots) by sending configurable questions to the live widget, recording responses, checking consistency across multiple runs, and generating a detailed PDF audit report.
+BotAudit is a web-based tool that automatically tests live chat widgets across 17 platforms (Zendesk, Intercom, Drift, Crisp, HubSpot, Freshchat, Tidio, LiveChat, Tawk.to, Olark, Zoom Contact Center, Gorgias, Qualified, Forethought, Ada, Sunshine Conversations, and generic widgets). It sends configurable questions to the live widget, records responses, scores semantic consistency across multiple runs, measures response time, captures screenshots, and generates a graded PDF audit report (A to F).
 
 ## What it does
 
-- Runs a set of test questions against any live Zendesk Messaging widget
-- Sends each question multiple times (1×, 3×, or 5×) to test consistency
-- Captures screenshots of the bot conversation
+- Auto-detects 17 chat platforms and interacts with the live widget in a real browser (Playwright + headless Chromium)
+- Sends each question multiple times (1×, 3×, or 5×) in fresh, isolated sessions to test consistency
+- Captures screenshots of every interaction
 - Measures response time per question
-- Detects errors, no-responses, and inconsistent answers
-- Generates a downloadable PDF report and CSV data export
+- Detects errors, missed responses, and contradictory answers using cosine-similarity scoring
+- Grades each bot A to F across response quality (50%), reliability (25%), and consistency (25%)
+- Generates a downloadable PDF report, CSV data export, and a public shareable link
 
-## Who it's for
+## Who it is for
 
-- Customer support managers who want to verify their Zendesk bot is configured correctly
+- Customer support managers verifying their bot is configured correctly
 - QA teams running regression tests after updating bot flows or knowledge base articles
-- Agencies delivering Zendesk implementations who need proof-of-quality reports for clients
+- Agencies delivering chatbot implementations who need proof-of-quality reports for clients
 - Anyone who suspects their support bot is not answering customers correctly
 
 ## Pricing
 
-- **Free demo**: 3 questions, 1 run each — no account or payment required
-- **Paid audits**: one-time payment, no subscription. Price scales with number of questions and runs per question (typically a few dollars for a standard 20-question audit)
+- Free demo: 3 questions, 1 run each. No account or payment required.
+- Paid audits: one-time payment, no subscription. $0.75 per question per run (1×), $0.50 (3×), $0.40 (5×). $0.25 per question for screenshots. $10 minimum.
 
 ## How to use it
 
-1. Enter the URL of any page that has a Zendesk Messaging chat widget
-2. Choose a question set (20 default questions, or upload your own)
+1. Enter the URL of any page that has a supported chat widget
+2. Choose a question set (20 default questions across 6 categories, or upload your own)
 3. Configure the number of runs per question
 4. Pay (or use the free demo)
 5. Watch the live feed as BotAudit tests the bot in real time
-6. Download the PDF report and CSV results
+6. Download the PDF report and CSV results, or share the public results link
 
 ## Technology
 
-BotAudit uses Playwright (headless Chromium) to interact with the real chat widget on the target page — the same way a human customer would. Each question is sent in a fresh browser session to prevent conversation memory from affecting results.
+BotAudit uses Playwright (headless Chromium) to interact with the real chat widget on the target page, the same way a human customer would. Each question is sent in a fresh browser session to prevent conversation memory from affecting results. Semantic similarity is computed via embedding cosine distance to distinguish identical, equivalent, variable, and contradictory answers.
+
+## Key pages
+
+- Homepage: https://botaudit.app/
+- Blog index: https://botaudit.app/blog/
+- Product walkthrough with real audited bots: https://botaudit.app/blog/how-botaudit-works/
+- Zendesk bot testing guide: https://botaudit.app/blog/is-your-zendesk-bot-working/
+- Why bots give inconsistent answers: https://botaudit.app/blog/support-bot-consistency/
+- 20-question audit checklist: https://botaudit.app/blog/chatbot-audit-checklist/
 
 ## Contact and access
 
 - Website: https://botaudit.app
+- Support email: support@botaudit.app
 - No API currently available
-- No account registration required — sessions are identified by a one-time ID
+- No account registration required. Sessions are identified by a one-time UUID.

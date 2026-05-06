@@ -109,7 +109,7 @@
   </div>
 </div>
 
-<div class="powered">Powered by <a href="/">BotAudit</a> — automated support bot quality testing</div>
+<div class="powered">Powered by <a href="/">BotAudit</a> · automated support bot quality testing</div>
 
 <script>
   const configId = location.pathname.split('/').pop()
@@ -134,7 +134,7 @@
 
     // Header
     const hostname = config.targetUrl ? new URL(config.targetUrl).hostname : 'Unknown'
-    document.title = `BotAudit — ${hostname}`
+    document.title = `BotAudit · ${hostname}`
     document.getElementById('rpt-title').textContent = `Bot Audit: ${hostname}`
     document.getElementById('rpt-url').textContent = config.targetUrl || '—'
     document.getElementById('rpt-date').textContent = summary.completedAt

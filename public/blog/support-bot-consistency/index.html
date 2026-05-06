@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Why support bots give different answers to the same question — BotAudit</title>
+  <title>Why support bots give inconsistent answers</title>
   <meta name="description" content="Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.">
   <link rel="canonical" href="https://botaudit.app/blog/support-bot-consistency/">
   <meta name="robots" content="index, follow">
@@ -11,8 +11,12 @@
   <meta property="og:description" content="Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.">
   <meta property="og:url" content="https://botaudit.app/blog/support-bot-consistency/">
   <meta property="og:type" content="article">
+  <meta property="og:site_name" content="BotAudit">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Why support bots give different answers to the same question">
+  <meta name="twitter:description" content="Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Why support bots give different answers to the same question","description":"Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.","url":"https://botaudit.app/blog/support-bot-consistency/","publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Why support bots give different answers to the same question","description":"Inconsistent answers are one of the most damaging things a support bot can do. Here's why it happens and what you can do about it.","url":"https://botaudit.app/blog/support-bot-consistency/","mainEntityOfPage":"https://botaudit.app/blog/support-bot-consistency/","datePublished":"2025-03-14","dateModified":"2025-03-14","author":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"},"publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
   <!-- Sentry (frontend error monitoring) -->
   <script src="https://browser.sentry-cdn.com/10.43.0/bundle.min.js" crossorigin="anonymous"></script>
   <script>
@@ -68,12 +72,12 @@
   <div class="post-meta">March 2025 · 4 min read</div>
   <div class="prose">
 
-    <p>Ask your support bot "what is your refund policy?" three times. You might get three different answers. Not wildly different — but different enough that a customer would notice, and different enough to cause confusion.</p>
+    <p>Ask your support bot "what is your refund policy?" three times. You might get three different answers. Not wildly different, but different enough that a customer would notice, and different enough to cause confusion.</p>
 
-    <p>This is called answer inconsistency, and it's one of the most damaging things a support bot can do. Not because any individual answer is wrong, but because inconsistency signals to the customer that <em>the bot doesn't really know</em> — and once a customer loses trust in your bot, they stop using it and go straight to a human agent.</p>
+    <p>This is called answer inconsistency, and it's one of the most damaging things a support bot can do. Not because any individual answer is wrong, but because inconsistency signals to the customer that <em>the bot doesn't really know</em>. Once a customer loses trust in your bot, they stop using it and go straight to a human agent.</p>
 
     <div class="example-box">
-      <div class="example-label">Example — Same question, three different answers</div>
+      <div class="example-label">Example: Same question, three different answers</div>
       <div class="example-q">"How do I get a refund?"</div>
       <div class="example-run"><div class="run-num">Run 1</div>You can request a refund within 30 days of purchase by contacting our support team.</div>
       <div class="example-run"><div class="run-num">Run 2</div>Our refund policy allows returns within 14 days for unused products. Visit your account settings to initiate a return.</div>
@@ -87,15 +91,15 @@
     <p>The most common causes of answer inconsistency in Zendesk bots:</p>
 
     <ul>
-      <li><strong>Multiple articles matching the same query.</strong> If you have both a "Refund Policy" article and a "Returns and Exchanges" article, the bot may pick either one depending on small variations in how the question is phrased — or even randomly if the confidence scores are similar.</li>
+      <li><strong>Multiple articles matching the same query.</strong> If you have both a "Refund Policy" article and a "Returns and Exchanges" article, the bot may pick either one depending on small variations in how the question is phrased, or even randomly if the confidence scores are similar.</li>
       <li><strong>Stale articles.</strong> Your refund policy changed six months ago but the old article is still in the knowledge base and still gets matched. The bot serves whichever one it happens to find.</li>
-      <li><strong>AI-generated variation.</strong> If you're using an LLM-backed bot (like Zendesk's generative AI answers), the model may phrase the same answer differently each time it generates a response — and sometimes those variations contain factual differences.</li>
+      <li><strong>AI-generated variation.</strong> If you're using an LLM-backed bot (like Zendesk's generative AI answers), the model may phrase the same answer differently each time it generates a response, and sometimes those variations contain factual differences.</li>
       <li><strong>Session state affecting answers.</strong> Some bots behave differently based on whether a user is logged in, what page they're on, or what they said earlier in the conversation. If your test sessions aren't perfectly isolated, you may see inconsistency caused by session state leaking between tests.</li>
     </ul>
 
     <h2>How to find it</h2>
 
-    <p>The only way to reliably detect inconsistency is to ask the same question multiple times in fresh, isolated sessions and compare the answers. One test run isn't enough — you need at least three runs per question to see a pattern.</p>
+    <p>The only way to reliably detect inconsistency is to ask the same question multiple times in fresh, isolated sessions and compare the answers. One test run isn't enough. You need at least three runs per question to see a pattern.</p>
 
     <p>This is tedious to do manually. BotAudit automates it: it opens a fresh browser session for each run, sends your question, records the response, and flags any question where the answers differ across runs.</p>
 
@@ -105,9 +109,9 @@
 
     <ul>
       <li><strong>Consolidate duplicate articles.</strong> Merge overlapping knowledge base articles so there's one authoritative source per topic.</li>
-      <li><strong>Add answer intents.</strong> In Zendesk, you can create explicit "Answer" flows that trigger on specific phrases — these are more deterministic than article matching.</li>
+      <li><strong>Add answer intents.</strong> In Zendesk, you can create explicit "Answer" flows that trigger on specific phrases. These are more deterministic than article matching.</li>
       <li><strong>Review and archive stale content.</strong> Remove or archive outdated articles that contradict current policy.</li>
-      <li><strong>Test after every knowledge base update.</strong> Treat your bot like code — changes can have unintended side effects, and you need a test suite to catch them.</li>
+      <li><strong>Test after every knowledge base update.</strong> Treat your bot like code: changes can have unintended side effects, and you need a test suite to catch them.</li>
     </ul>
 
     <div class="cta-box">
@@ -115,6 +119,13 @@
       <p>BotAudit runs each question 3× in isolated sessions and flags every inconsistency. Free demo, no account needed.</p>
       <a class="cta-btn" href="/">Run a free audit →</a>
     </div>
+
+    <h2>Related reading</h2>
+    <ul>
+      <li><a href="/blog/is-your-zendesk-bot-working/">Is your Zendesk bot actually working? How to find out</a></li>
+      <li><a href="/blog/chatbot-audit-checklist/">The 20-question checklist for auditing any AI support bot</a></li>
+      <li><a href="/blog/how-botaudit-works/">How BotAudit works: real audits of 7 support bots</a></li>
+    </ul>
 
   </div>
 </div>

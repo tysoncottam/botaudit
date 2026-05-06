@@ -170,9 +170,9 @@ function scoreQuestion(question, expectation, runs) {
   const scores = runs.map(run =>
     scoreResponseQuality(question, expectation, run.response)
   )
-  const validScores = scores.filter(s => s.score > 0)
-  const average = validScores.length > 0
-    ? Math.round(validScores.reduce((sum, s) => sum + s.score, 0) / validScores.length * 10) / 10
+  // scoreResponseQuality always returns score in [1, 5], so every score counts.
+  const average = scores.length > 0
+    ? Math.round(scores.reduce((sum, s) => sum + s.score, 0) / scores.length * 10) / 10
     : 0
 
   return { scores, average }

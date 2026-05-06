@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The 20-question checklist for auditing any AI support bot — BotAudit</title>
+  <title>The 20-question checklist for auditing any AI support bot</title>
   <meta name="description" content="Before going live or after a major update, run these 20 questions against your bot to catch the most common failure modes.">
   <link rel="canonical" href="https://botaudit.app/blog/chatbot-audit-checklist/">
   <meta name="robots" content="index, follow">
@@ -11,8 +11,12 @@
   <meta property="og:description" content="Before going live or after a major update, run these 20 questions against your bot to catch the most common failure modes.">
   <meta property="og:url" content="https://botaudit.app/blog/chatbot-audit-checklist/">
   <meta property="og:type" content="article">
+  <meta property="og:site_name" content="BotAudit">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="The 20-question checklist for auditing any AI support bot">
+  <meta name="twitter:description" content="Before going live or after a major update, run these 20 questions against your bot to catch the most common failure modes.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"The 20-question checklist for auditing any AI support bot","description":"Before going live or after a major update, run these 20 questions against your bot to catch the most common failure modes.","url":"https://botaudit.app/blog/chatbot-audit-checklist/","publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"The 20-question checklist for auditing any AI support bot","description":"Before going live or after a major update, run these 20 questions against your bot to catch the most common failure modes.","url":"https://botaudit.app/blog/chatbot-audit-checklist/","mainEntityOfPage":"https://botaudit.app/blog/chatbot-audit-checklist/","datePublished":"2025-03-14","dateModified":"2025-03-14","author":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"},"publisher":{"@type":"Organization","name":"BotAudit","url":"https://botaudit.app"}}</script>
   <!-- Sentry (frontend error monitoring) -->
   <script src="https://browser.sentry-cdn.com/10.43.0/bundle.min.js" crossorigin="anonymous"></script>
   <script>
@@ -51,6 +55,11 @@
     .cta-box p { font-size: 14px; color: #475569; margin-bottom: 18px; }
     .cta-btn { display: inline-block; background: #6366f1; color: #fff; border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 600; text-decoration: none; }
     .cta-btn:hover { background: #4f46e5; }
+    .related-list { list-style: disc; padding-left: 24px; margin-top: 12px; }
+    .related-list li { font-size: 15px; line-height: 1.85; color: #475569; display: list-item; }
+    .related-list li::before { content: none; }
+    .related-list a { color: #6366f1; text-decoration: none; }
+    .related-list a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -65,20 +74,20 @@
   <div class="post-meta">March 2025 · 3 min read</div>
   <div class="prose">
 
-    <p>Whether you're launching a new bot, updating your knowledge base, or just doing a periodic quality check — these 20 questions cover the most common failure modes in AI support bots.</p>
+    <p>Whether you're launching a new bot, updating your knowledge base, or just doing a periodic quality check, these 20 questions cover the most common failure modes in AI support bots.</p>
 
     <p>For best results, ask each question at least 3 times in fresh, isolated browser sessions. If the answers differ between runs, you have an inconsistency issue.</p>
 
     <div class="category-label">Escalation</div>
     <ul>
       <li>I need to speak with a human agent.</li>
-      <li>This is urgent — how do I get help faster?</li>
+      <li>This is urgent. How do I get help faster?</li>
       <li>Can I call someone? Do you have a phone number?</li>
     </ul>
 
     <div class="category-label">Billing</div>
     <ul>
-      <li>I was charged twice — can I get a refund?</li>
+      <li>I was charged twice. Can I get a refund?</li>
       <li>What is your refund or cancellation policy?</li>
       <li>How do I update my payment method?</li>
     </ul>
@@ -107,14 +116,14 @@
 
     <div class="category-label">Product Support</div>
     <ul>
-      <li>The product I received is damaged — what do I do?</li>
+      <li>The product I received is damaged. What do I do?</li>
       <li>How do I track my order?</li>
     </ul>
 
     <div class="category-label">Edge Cases</div>
     <ul>
-      <li>asdfghjkl qwerty (nonsense — should fail gracefully)</li>
-      <li>How do I contact support? (meta question — what does the bot say about itself?)</li>
+      <li>asdfghjkl qwerty (nonsense input. The bot should fail gracefully.)</li>
+      <li>How do I contact support? (meta question. What does the bot say about itself?)</li>
     </ul>
 
     <h2>What to look for</h2>
@@ -139,6 +148,13 @@
       <p>BotAudit tests all 20 questions × 3 runs and gives you a full PDF report. Free demo available.</p>
       <a class="cta-btn" href="/">Start free audit →</a>
     </div>
+
+    <h2>Related reading</h2>
+    <ul class="related-list">
+      <li><a href="/blog/is-your-zendesk-bot-working/">Is your Zendesk bot actually working? How to find out</a></li>
+      <li><a href="/blog/support-bot-consistency/">Why support bots give different answers to the same question</a></li>
+      <li><a href="/blog/how-botaudit-works/">How BotAudit works: real audits of 7 support bots</a></li>
+    </ul>
 
   </div>
 </div>

@@ -3,6 +3,8 @@
 // server.js — Express server for the Support Bot Auditor
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Prefer .env.local (gitignored, real secrets) over .env (legacy fallback)
+require('dotenv').config({ path: '.env.local' })
 require('dotenv').config()
 
 // ── Sentry (server-side error monitoring) ────────────────────────────────────
@@ -140,8 +142,22 @@ function markDemoUsed(ip) {
   try { fs.writeFileSync(DEMO_USED_PATH, JSON.stringify([...demoUsedIPs])) } catch { /* non-fatal */ }
 }
 
+// req.ip respects trust-proxy and Cloudflare's CF-Connecting-IP via the proxy chain
 function getClientIP(req) {
-  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
+  return req.ip || req.socket.remoteAddress || 'unknown'
+}
+
+// ── SSRF guard — reject private, loopback, and metadata IPs ──────────────────
+// Frontend lets users submit any URL for Playwright to visit. Without this,
+// an attacker could probe internal networks (192.168.x, 10.x, AWS metadata, etc.)
+const PRIVATE_IP_RE = /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd|0\.0\.0\.0$|localhost$)/i
+function validateTargetUrl(urlStr) {
+  if (typeof urlStr !== 'string' || urlStr.length > 2048) return { ok: false, error: 'Target URL is required' }
+  let u
+  try { u = new URL(urlStr) } catch { return { ok: false, error: 'Invalid URL' } }
+  if (!['http:', 'https:'].includes(u.protocol)) return { ok: false, error: 'Only http(s) URLs are allowed' }
+  if (PRIVATE_IP_RE.test(u.hostname)) return { ok: false, error: 'Private/internal addresses are not allowed' }
+  return { ok: true, url: u.href }
 }
 
 // ── Express app ───────────────────────────────────────────────────────────────
@@ -149,9 +165,44 @@ const app  = express()
 const PORT = parseInt(process.env.PORT || '3000', 10)
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
 
+// Trust the upstream proxy (Cloudflare Tunnel / Railway / etc.) so req.ip reflects
+// the real visitor address instead of the loopback handoff
+app.set('trust proxy', true)
+
 Sentry.setupExpressErrorHandler(app)
 app.use(express.json({ limit: '5mb' }))
 app.use(express.static(path.join(__dirname, 'public')))
+
+// ── Rate limiting (in-memory token bucket per IP+route) ──────────────────────
+// Lightweight DIY limiter to avoid pulling in another dependency. Each (ip, route)
+// pair gets a window of N requests / windowMs; older timestamps drop off.
+const rateBuckets = new Map() // key -> [timestamps]
+function rateLimit({ windowMs, max }) {
+  return (req, res, next) => {
+    const key = `${getClientIP(req)}|${req.path}`
+    const now = Date.now()
+    const arr = (rateBuckets.get(key) || []).filter((t) => now - t < windowMs)
+    if (arr.length >= max) {
+      return res.status(429).json({ error: 'Too many requests — slow down and try again in a minute.' })
+    }
+    arr.push(now)
+    rateBuckets.set(key, arr)
+    next()
+  }
+}
+// Periodic GC so the bucket map doesn't grow unbounded
+setInterval(() => {
+  const cutoff = Date.now() - 10 * 60 * 1000
+  for (const [k, arr] of rateBuckets) {
+    const fresh = arr.filter((t) => t > cutoff)
+    if (fresh.length === 0) rateBuckets.delete(k)
+    else if (fresh.length !== arr.length) rateBuckets.set(k, fresh)
+  }
+}, 5 * 60 * 1000).unref()
+
+const checkBotLimit = rateLimit({ windowMs: 60_000, max: 10 })  // 10/min for pre-flight
+const auditLimit    = rateLimit({ windowMs: 60_000, max: 5 })   // 5/min for paid+demo audits
+const uploadLimit   = rateLimit({ windowMs: 60_000, max: 20 })  // 20/min for question uploads
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -251,11 +302,12 @@ app.get('/api/default-questions', (req, res) => {
 })
 
 // ── POST /api/check-bot — pre-flight reachability check ──────────────────────
-app.post('/api/check-bot', async (req, res) => {
+app.post('/api/check-bot', checkBotLimit, async (req, res) => {
   const { targetUrl, preChatSteps = [], preChatEmail = '' } = req.body
-  if (!targetUrl) return res.status(400).json({ error: 'targetUrl is required' })
+  const v = validateTargetUrl(targetUrl)
+  if (!v.ok) return res.status(400).json({ reachable: false, error: v.error })
   try {
-    const result = await checkBot({ targetUrl, preChatSteps, preChatEmail })
+    const result = await checkBot({ targetUrl: v.url, preChatSteps, preChatEmail })
     res.json(result)
   } catch (err) {
     console.error('check-bot error:', err.message, err.stack)
@@ -289,9 +341,10 @@ app.post('/api/demo-reset', (req, res) => {
 })
 
 // ── POST /api/demo — free 3-question demo (no payment) ───────────────────────
-app.post('/api/demo', (req, res) => {
+app.post('/api/demo', auditLimit, (req, res) => {
   const { targetUrl } = req.body
-  if (!targetUrl) return res.status(400).json({ error: 'Target URL is required' })
+  const v = validateTargetUrl(targetUrl)
+  if (!v.ok) return res.status(400).json({ error: v.error })
 
   const ip = getClientIP(req)
   if (demoUsedIPs.has(ip)) {
@@ -318,7 +371,7 @@ app.post('/api/demo', (req, res) => {
 
   const configId = uuidv4()
   getOrCreateSession(configId, {
-    targetUrl,
+    targetUrl: v.url,
     questions: demoQuestions,
     runsPerQuestion: 1,
     takeScreenshots: true,
@@ -333,11 +386,13 @@ app.post('/api/demo', (req, res) => {
 })
 
 // ── POST /api/checkout — create Stripe checkout session ──────────────────────
-app.post('/api/checkout', async (req, res) => {
+app.post('/api/checkout', auditLimit, async (req, res) => {
   const { targetUrl, questions, runsPerQuestion, takeScreenshots } = req.body
 
-  if (!targetUrl) return res.status(400).json({ error: 'Target URL is required' })
+  const v = validateTargetUrl(targetUrl)
+  if (!v.ok) return res.status(400).json({ error: v.error })
   if (!questions || questions.length === 0) return res.status(400).json({ error: 'No questions provided' })
+  if (questions.length > 200) return res.status(400).json({ error: 'Maximum 200 questions per audit' })
   if (!stripe) return res.status(503).json({ error: 'Payments not configured — add STRIPE_SECRET_KEY to .env' })
 
   const configId   = uuidv4()
@@ -347,7 +402,7 @@ app.post('/api/checkout', async (req, res) => {
   const total      = calculatePrice(numQ, runs, screenshots)
   const totalCents = Math.round(total * 100)
 
-  getOrCreateSession(configId, { targetUrl, questions, runsPerQuestion: runs, takeScreenshots: screenshots, notifyEmail: req.body.notifyEmail || '', preChatSteps: req.body.preChatSteps || [], preChatEmail: req.body.preChatEmail || '' })
+  getOrCreateSession(configId, { targetUrl: v.url, questions, runsPerQuestion: runs, takeScreenshots: screenshots, notifyEmail: req.body.notifyEmail || '', preChatSteps: req.body.preChatSteps || [], preChatEmail: req.body.preChatEmail || '' })
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -419,7 +474,15 @@ app.get('/api/stream/:configId', async (req, res) => {
       try {
         const stripeSession = await stripe.checkout.sessions.retrieve(session_id)
         if (stripeSession.payment_status === 'paid') {
+          // Bind the verified Stripe session id to this configId so the same payment
+          // can't be replayed against a different audit configuration
+          if (session.stripeSessionId && session.stripeSessionId !== session_id) {
+            return res.status(402).json({ error: 'Payment session mismatch' })
+          }
           session.status = 'paid'
+          session.stripeSessionId = session_id
+          session.paidAt = new Date().toISOString()
+          saveSessionMeta(configId, session)
         } else {
           return res.status(402).json({ error: 'Payment not completed' })
         }
@@ -476,6 +539,17 @@ app.get('/api/stream/:configId', async (req, res) => {
       generateReport({ config: session.config, results: event.results, summary: event.summary, outputDir })
         .then(() => console.log(`  PDF report generated for ${configId}`))
         .catch((err) => console.warn(`  PDF generation failed for ${configId}: ${err.message}`))
+        .finally(() => {
+          // Drop the session from memory once it's safely on disk. Disk-restoration
+          // path serves any future requests for this configId without holding ~50MB
+          // of base64 screenshots in the heap forever.
+          setTimeout(() => {
+            const s = sessions.get(configId)
+            if (s && s.status === 'complete' && s.clients.length === 0) {
+              sessions.delete(configId)
+            }
+          }, 60_000) // 1-minute grace so any in-flight SSE clients drain first
+        })
 
       if (session.config.notifyEmail) {
         logEmail(session.config.notifyEmail, session.config.targetUrl)
@@ -591,7 +665,7 @@ app.get('/api/download/:configId', (req, res) => {
 })
 
 // ── POST /api/upload-questions — parse uploaded question file ─────────────────
-app.post('/api/upload-questions', upload.single('file'), (req, res) => {
+app.post('/api/upload-questions', uploadLimit, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
 
   const content = req.file.buffer.toString('utf8')

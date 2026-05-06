@@ -3,6 +3,10 @@ node_modules/
 
 # Environment variables (never commit secrets)
 .env
+.env.local
+
+# Email collection log (PII)
+email-log.json
 
 # Audit results (user data, screenshots, PDFs)
 results/

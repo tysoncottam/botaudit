@@ -6,8 +6,8 @@ BotAudit (botaudit.app) is a SaaS tool that automatically tests AI support bots.
 
 **Owner:** Tyson Cottam (tysoncottam@gmail.com), Utah-based
 **GitHub:** tysoncottam/botaudit
-**Hosting:** Railway (auto-deploys on push to main)
-**Domain:** botaudit.app (Porkbun, ALIAS → Railway)
+**Hosting:** Cloudflare Tunnel → Node process on Tyson's Mac (free, no CC). See `DEPLOYMENT.md`.
+**Domain:** botaudit.app (Cloudflare DNS, CNAME to tunnel UUID)
 
 ---
 
@@ -74,7 +74,10 @@ The tester auto-detects and interacts with these chat widget platforms:
 | `tester.js` | Playwright test engine — fresh browser context per run, text stability detection |
 | `generate-report.js` | PDF report generator via headless Chromium |
 | `default-questions.js` | 20 generic test questions across 6 categories |
-| `Dockerfile` | node:22-slim with Playwright Chromium system deps for Railway |
+| `Dockerfile` | node:22-slim with Playwright Chromium system deps. Kept for local containerized testing; not used by the live deployment (which runs natively on macOS via Cloudflare Tunnel) |
+| `DEPLOYMENT.md` | Cloudflare Tunnel + launchd deployment runbook |
+| `.cloudflared-config.example.yml` | Tunnel ingress config template |
+| `com.botaudit.server.plist` | launchd agent that keeps the Node server alive on Tyson's Mac |
 | `public/index.html` | Main single-page app with GA4, Sentry, JSON-LD structured data |
 | `public/app.js` | Frontend logic — SSE client, results rendering, share button, session recovery |
 | `public/share.html` | Public read-only shareable results page at `/r/:configId` |
@@ -98,12 +101,12 @@ The tester auto-detects and interacts with these chat widget platforms:
 
 ## Infrastructure
 
-- **Railway project:** joyful-courtesy, auto-deploys on push to main
-- **DNS:** Porkbun ALIAS → 98c78obl.up.railway.app
-- **Email:** support@botaudit.app → tysoncottam@gmail.com (Porkbun forwarding)
-- **Stripe:** Live keys in Railway environment variables
-- **Google Search Console:** Verified via HTML file, sitemap submitted
-- **Google Analytics:** GA4 property G-JQ6E8GS4DE, account 145224052
+- **Hosting:** Cloudflare Tunnel (`cloudflared` daemon) → `node server.js` running on Tyson's Mac under launchd. See `DEPLOYMENT.md` for the runbook.
+- **DNS:** Cloudflare zone `botaudit.app` (free plan). Tunnel CNAME points `botaudit.app` and `www.botaudit.app` at `<UUID>.cfargotunnel.com`. If the zone isn't yet on Cloudflare, swap Porkbun's nameservers to Cloudflare's two assigned NS records.
+- **Email:** support@botaudit.app → tysoncottam@gmail.com (Porkbun forwarding still active; only nameservers move).
+- **Stripe:** Live keys live in `~/code/personal/business/botaudit/.env.local` (gitignored). Loaded by dotenv in priority over `.env`.
+- **Google Search Console:** Verified via HTML file, sitemap submitted.
+- **Google Analytics:** GA4 property G-JQ6E8GS4DE, account 145224052.
 - **Sentry DSNs:**
   - Server: `https://ef91866ed864042f89a89d82f136cc68@o4511044528832512.ingest.us.sentry.io/4511044540235776`
   - Frontend: `https://ff2b83a4b05f68bd131cbde640449e93@o4511044528832512.ingest.us.sentry.io/4511044557275136`
@@ -121,6 +124,17 @@ Sessions are identified by a UUID `configId`. They live in memory during a run a
 - `screenshots/` — one PNG per run per question
 
 **Server restart recovery:** `/api/stream/:configId` restores sessions from disk before returning 404. Completed sessions send a `complete` SSE event; interrupted mid-run sessions send an `interrupted` event with partial results.
+
+**Memory hygiene:** completed sessions are dropped from the in-memory `Map` 60s after the PDF is generated (and only if no SSE clients are still attached). Disk-restoration handles any straggling requests.
+
+---
+
+## Security & Abuse Mitigations
+
+- **`app.set('trust proxy', true)`** so `req.ip` reflects the real visitor address behind Cloudflare/any proxy. The free-trial demo gate depends on this.
+- **SSRF guard** on `targetUrl` in `/api/check-bot`, `/api/demo`, `/api/checkout` — rejects loopback, RFC1918, link-local, and metadata IPs before passing to Playwright.
+- **Rate limits** (in-memory token bucket, no extra deps) — `/api/checkout` and `/api/demo` 5/min/IP, `/api/check-bot` 10/min/IP, `/api/upload-questions` 20/min/IP.
+- **Stripe replay protection** — verified `session_id` is bound to `configId` on first verification; subsequent verifications with a different session_id return 402.
 
 ---
 
