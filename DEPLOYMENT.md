@@ -1,6 +1,60 @@
 # BotAudit Deployment
 
-The site is hosted via **Cloudflare Tunnel** pointed at a Node.js process running on Tyson's Mac. This is the only hosting option that meets all three constraints (free forever, no credit card, can run Playwright + Chromium).
+The site is hosted via **Cloudflare Tunnel** pointed at a Node.js process running on Tyson's home Pi 5 (`mintcoke-pi`, reachable via Tailscale). The Mac setup below is kept as a fallback path. This is the only hosting option that meets all three constraints (free forever, no credit card, can run Playwright + Chromium).
+
+## Day-to-day operations (Pi)
+
+Reach the Pi via Tailscale: `ssh pi@mintcoke-pi` (Tailscale SSH handles auth).
+
+```bash
+# Restart the Node server
+sudo systemctl restart botaudit-server
+
+# Restart the tunnel
+sudo systemctl restart cloudflared
+
+# Tail logs
+sudo journalctl -u botaudit-server -f
+sudo journalctl -u cloudflared -f
+# Server stdout/stderr files
+tail -f /var/log/botaudit/server.log
+
+# Pull new code (run from Mac)
+rsync -avz --exclude='.git/' --exclude='node_modules/' --exclude='results/' \
+  --exclude='outreach/results/' --exclude='*.log' --exclude='.env' \
+  ~/code/personal/business/botaudit/ pi@mintcoke-pi:/home/pi/botaudit/ \
+  && ssh pi@mintcoke-pi 'cd ~/botaudit && npm ci && sudo systemctl restart botaudit-server'
+```
+
+Tunnel UUID: `4aa94e92-23bb-4e9a-a7bf-322bfd97ceeb` (same UUID as Mac fallback — only one host at a time should run it, though multiple is supported with HA).
+
+Files of note on the Pi:
+- `/home/pi/botaudit/` — app
+- `/home/pi/botaudit/.env.local` — secrets (gitignored, holds Stripe restricted key)
+- `/etc/cloudflared/config.yml` + `/etc/cloudflared/4aa94e92-...json` — tunnel config (root-owned, system service path)
+- `/etc/systemd/system/botaudit-server.service` — Node server unit
+- `/etc/systemd/system/cloudflared.service` — tunnel unit (created by `cloudflared service install`)
+- `/var/log/botaudit/` — server stdout/stderr
+
+## Mac fallback path
+
+If the Pi is offline (rare; it's a home device on UPS-grade reliability), bring the Mac back up:
+
+```bash
+launchctl load -w ~/Library/LaunchAgents/com.botaudit.cloudflared.plist
+launchctl load -w ~/Library/LaunchAgents/com.botaudit.server.plist
+```
+
+Both run the same tunnel UUID, so DNS doesn't change. To return to Pi-only afterward:
+
+```bash
+launchctl unload -w ~/Library/LaunchAgents/com.botaudit.cloudflared.plist
+launchctl unload -w ~/Library/LaunchAgents/com.botaudit.server.plist
+```
+
+---
+
+## Original setup notes (for reference / starting over)
 
 ## Why this setup
 

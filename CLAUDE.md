@@ -6,8 +6,8 @@ BotAudit (botaudit.app) is a SaaS tool that automatically tests AI support bots.
 
 **Owner:** Tyson Cottam (tysoncottam@gmail.com), Utah-based
 **GitHub:** tysoncottam/botaudit
-**Hosting:** Cloudflare Tunnel → Node process on Tyson's Mac (free, no CC). See `DEPLOYMENT.md`.
-**Domain:** botaudit.app (Cloudflare DNS, CNAME to tunnel UUID)
+**Hosting:** Cloudflare Tunnel → Node process on Tyson's home Pi 5 (`mintcoke-pi`, Debian 12, 8 GB RAM, ARM64) under systemd. Always-on, free, no CC. Mac launchd plists kept as fallback. See `DEPLOYMENT.md`.
+**Domain:** botaudit.app (Cloudflare DNS, CNAME to tunnel UUID `4aa94e92-23bb-4e9a-a7bf-322bfd97ceeb`)
 
 ---
 
